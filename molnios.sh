@@ -71,7 +71,8 @@ fi
 
 # 1.4. Web paths.
 SHARED_REPO="codeberg.org/al1h3n/molnios-shared"
-SHARED_MEDIA_REPO="codeberg.org/al1h3n/molnios-media"
+SHARED_MEDIA_STATIC_REPO="gitlab.com/molni/os-media-static" # codeberg.org/al1h3n/molnios-media
+SHARED_MEDIA_DYNAMIC_REPO="gitlab.com/molni/os-media-dynamic"
 SHARED_CONFIG=$SHARED_PATH/config
 
 # 2. Preparations and function handling.
@@ -435,10 +436,10 @@ remove(){
 
 if $DEBUG;then
     echo MD: Debug mode enabled.
-    echo -e "File name - $0. Repositores: shared dotfiles repo - $SHARED_REPO,\nshared wallpaper repo - $SHARED_MEDIA_REPO."
+    echo -e "File name - $0. Repositores: shared dotfiles repo - $SHARED_REPO,\nshared wallpaper repo (video) - $SHARED_MEDIA_DYNAMIC_REPO,\nshared static wallpaper repo - $SHARED_MEDIA_STATIC_REPO."
     echo -e "Current OS: $OS"
     echo -e "Testing (you should see colorful text): ${FINISH}this is a green text${RESET}, ${RED}whereas this is a red one.${RESET}."
-    echo -e "Current user: $USER, directory - ${CURRENT_DIR}, shared path - ${SHARED_PATH}."
+    echo -e "Current user: $USER, directory - ${CURRENT_DIR}, shared path - $SHARED_PATH."
     if ping -q -c 1 -W 1 8.8.8.8 >/dev/null;then
         echo -e "Internet: ${GREEN}working${RESET}."
     else
@@ -479,7 +480,8 @@ install(){
     if [ $OS = "nix" ];then
         repo $SHARED_REPO $SHARED_PATH
         mkdir -p $SHARED_MEDIA_PATH/wallpapers/static
-        repo s $SHARED_MEDIA_REPO $SHARED_MEDIA_PATH/wallpapers wallpapers/static
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/wallpapers/static
+        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/wallpapers/dynamic
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
         repo github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
         symlinks
@@ -503,8 +505,8 @@ install(){
         backup $ENV_FILE
         packages_p
         repo $SHARED_REPO $SHARED_PATH
-        mkdir -p $SHARED_MEDIA_PATH/wallpapers/static
-        repo s $SHARED_MEDIA_REPO $SHARED_MEDIA_PATH/wallpapers wallpapers/static
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/wallpapers/static
+        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/wallpapers/dynamic
         repo github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
         symlinks
         dots_backup
