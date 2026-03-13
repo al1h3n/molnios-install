@@ -483,8 +483,11 @@ install(){
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/wallpapers
         repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/wallpapers
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
-        repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
         symlinks
+
+        repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
+        mkdir -p $USER_HOME/.config/waybar
+        ln -sfn $SHARED_CONFIG/mechabar $USER_HOME/.config/waybar
 
         cp -r /etc/nixos/hardware-configuration.nix $SHARED_NIX_PATH
         git -C $SHARED_NIX_PATH add -f hardware-configuration.nix
@@ -507,11 +510,15 @@ install(){
         repo $SHARED_REPO $SHARED_PATH
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/wallpapers
         repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/wallpapers
-        repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
         symlinks
         dots_backup
         icons_install
         cursor
+        
+        repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
+        mkdir -p $USER_HOME/.config/waybar
+        ln -sfn $SHARED_CONFIG/mechabar $USER_HOME/.config/waybar
+
         env_add "SHARED_PATH=$SHARED_PATH"
         env_add "SHARED_MEDIA_PATH=$SHARED_MEDIA_PATH/wallpapers"
         env_add "L_PATH=~/.local/share/molnios"
