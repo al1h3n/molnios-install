@@ -483,7 +483,7 @@ install(){
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/wallpapers
         repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/wallpapers
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
-        repo github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
+        repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
         symlinks
 
         cp -r /etc/nixos/hardware-configuration.nix $SHARED_NIX_PATH
