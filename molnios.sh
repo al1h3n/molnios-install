@@ -55,7 +55,7 @@ if exists nix-shell;then
     SHARED_PATH=/etc/nixos/shared
     SHARED_NIX_PATH=/etc/nixos/molnixos
     SHARED_MEDIA_PATH=$USER_HOME/.local/share/molnios/molnios-media
-    SHARED_REPO_NIX="codeberg.org/al1h3n/molnixos"
+    SHARED_REPO_NIX="gitlab.com/al1h3n/molnixos"
 elif exists pacman;then
     OS="arch"
     SHARED_PATH=/usr/local/bin/molnios
@@ -71,8 +71,8 @@ fi
 
 # 1.4. Web paths.
 SHARED_REPO="gitlab.com/al1h3n/molnios-shared"
-SHARED_MEDIA_STATIC_REPO="gitlab.com/al1h3n/os-media-static"
-SHARED_MEDIA_DYNAMIC_REPO="codeberg.org/al1h3n/os-media-dynamic"
+SHARED_MEDIA_STATIC_REPO="gitlab.com/al1h3n/molnios-media-static"
+SHARED_MEDIA_DYNAMIC_REPO="codeberg.org/al1h3n/molnios-media-dynamic"
 SHARED_CONFIG=$SHARED_PATH/config
 
 # 2. Preparations and function handling.
@@ -418,6 +418,7 @@ update(){
     else
         exit 1
     fi
+    exit 0
 }
 
 remove(){
@@ -432,6 +433,7 @@ remove(){
     else
         exit 1
     fi
+    exit 0
 }
 
 if $DEBUG;then
@@ -465,6 +467,7 @@ if $PRE_INSTALL;then
         nixos-generate-config -root /mnt
         nixos-install
     fi
+    exit 0
 fi
 
 if $UPDATE;then
