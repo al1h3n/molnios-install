@@ -70,9 +70,9 @@ else
 fi
 
 # 1.4. Web paths.
-SHARED_REPO="codeberg.org/al1h3n/molnios-shared"
-SHARED_MEDIA_STATIC_REPO="gitlab.com/molni/os-media-static" # codeberg.org/al1h3n/molnios-media
-SHARED_MEDIA_DYNAMIC_REPO="gitlab.com/molni/os-media-dynamic"
+SHARED_REPO="gitlab.com/al1h3n/molnios-shared"
+SHARED_MEDIA_STATIC_REPO="gitlab.com/al1h3n/os-media-static"
+SHARED_MEDIA_DYNAMIC_REPO="codeberg.org/al1h3n/os-media-dynamic"
 SHARED_CONFIG=$SHARED_PATH/config
 
 # 2. Preparations and function handling.
@@ -480,8 +480,8 @@ install(){
     if [ $OS = "nix" ];then
         repo $SHARED_REPO $SHARED_PATH
         mkdir -p $SHARED_MEDIA_PATH/wallpapers/static
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/wallpapers/static
-        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/wallpapers/dynamic
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/wallpapers
+        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/wallpapers
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
         repo github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
         symlinks
@@ -505,9 +505,9 @@ install(){
         backup $ENV_FILE
         packages_p
         repo $SHARED_REPO $SHARED_PATH
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/wallpapers/static
-        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/wallpapers/dynamic
-        repo github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/wallpapers
+        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/wallpapers
+        repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
         symlinks
         dots_backup
         icons_install
