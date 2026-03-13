@@ -483,8 +483,9 @@ install(){
     if [ $OS = "nix" ];then
         repo $SHARED_REPO $SHARED_PATH
         mkdir -p $SHARED_MEDIA_PATH/wallpapers
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
-        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH&&mv $SHARED_MEDIA_PATH/molnios-media-dynamic/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-dynamic
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/molnios-media-static&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
+        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/molnios-media-dynamic&&mv $SHARED_MEDIA_PATH/molnios-media-dynamic/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-dynamic
+        
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
         symlinks
 
@@ -511,8 +512,8 @@ install(){
         backup $ENV_FILE
         packages_p
         repo $SHARED_REPO $SHARED_PATH
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
-        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH&&mv $SHARED_MEDIA_PATH/molnios-media-dynamic/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-dynamic
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/molnios-media-static&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
+        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/molnios-media-dynamic&&mv $SHARED_MEDIA_PATH/molnios-media-dynamic/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-dynamic
         symlinks
         dots_backup
         icons_install
