@@ -113,14 +113,14 @@ repo(){ # $1 - link, $2 - path.
     elif [ -d "$2" ];then
         echo -e "${YELLOW}$2 exists but is not a git repo, removing and recloning..${RESET}"
         rm -rf "$2"
-        git clone "https://$1" "$2"
+        git clone "https://$1.git" "$2"
     elif [ "$1" = "s" ];then # Individual folder downloader.
         # FIX 2: Use shallow sparse-checkout instead of unsupported git archive
         # $1 - attribute, $2 - link, $3 - path, $4 - folder from repo.
         local tmpdir=$(mktemp -d)
         
         # Clone efficiently without downloading file contents yet
-        git clone --depth=1 --filter=blob:none --sparse "https://$2" "$tmpdir"
+        git clone --depth=1 --filter=blob:none --sparse "https://$2.git" "$tmpdir"
         
         # Tell Git to only fetch the specific folder
         git -C "$tmpdir" sparse-checkout set "$4"
@@ -226,7 +226,7 @@ packages_p(){
 
     echo Installing paru.
     local type="paru-bin"
-    repo https://aur.archlinux.org/$type.git&&cd $type&&makepkg -si&&cd ..&&rm -rf $type&&cd $CURRENT_DIR
+    repo aur.archlinux.org/$type&&cd $type&&makepkg -si&&cd ..&&rm -rf $type&&cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
     paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
@@ -241,7 +241,7 @@ packages_p(){
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/tomasklaen/uosc/HEAD/installers/unix.sh)"
 
     # ZSH shift select
-    repo https://github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
+    repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
     echo -e "${GREEN}Packages were installed.${RESET}"
 }
 
@@ -263,11 +263,11 @@ icons_install(){
     
     # We10X
     local tmpdir=$(mktemp -d)
-    git clone --depth=1 https://github.com/yeyushengfan258/We10X-icon-theme $tmpdir/we10x
+    git clone --depth=1 https://github.com/yeyushengfan258/We10X-icon-theme.git $tmpdir/we10x
     sh $tmpdir/we10x/install.sh -d /usr/share/icons -t black
     
     # MacTahoe
-    git clone --depth=1 https://github.com/vinceliuice/MacTahoe-icon-theme $tmpdir/mactahoe
+    git clone --depth=1 https://github.com/vinceliuice/MacTahoe-icon-theme.git $tmpdir/mactahoe
     sh $tmpdir/mactahoe/install.sh -d /usr/share/icons -t default
     
     rm -rf $tmpdir
