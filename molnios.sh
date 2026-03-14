@@ -201,9 +201,9 @@ packages_p(){
 
     sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/{s/^#//}' /etc/pacman.conf
     echo Main packages + fonts + important programs.
-    p base-devel openssh git fastfetch ttf-jetbrains-mono-nerd mpv btop font-manager neovim
+    p base-devel openssh git fastfetch countryfetch ttf-jetbrains-mono-nerd mpv btop font-manager neovim
     echo GUI applications.
-    p firefox qbittorrent obs-studio thunar gvfs obsidian cpu-x songrec
+    p firefox qbittorrent obs-studio thunar gvfs ffmpegthumbnailer obsidian cpu-x songrec
     echo Developing.
     p python-pipx breeze virt-manager
     echo RGB + accessories.
