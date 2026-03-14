@@ -492,7 +492,7 @@ install(){
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
         symlinks
 
-        repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
+        git clone -b fix/v0.14.0 https://github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
         mkdir -p $USER_HOME/.config/waybar
         cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
@@ -523,7 +523,7 @@ install(){
         icons_install
         cursor
         
-        repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
+        git clone -b fix/v0.14.0 https://github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
         mkdir -p $USER_HOME/.config/waybar
         cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
