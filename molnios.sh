@@ -130,7 +130,7 @@ repo(){ # $1 - link, $2 - path.
         cp -a "$tmpdir/$4/." "$3/"
         rm -rf "$tmpdir"
     else
-        git clone "https://$1" "$2"
+        git clone "https://$1.git" "$2"
     fi
 }
 
@@ -422,6 +422,7 @@ update(){
 }
 
 remove(){
+    rm -rf /.config/waybar/*
     if [ $OS = "nix" ];then
         prompt "removing files - CAN BREAK YOUR SYSTEM"
         rm -rf $SHARED_PATH/*
@@ -463,6 +464,7 @@ if $FRESH_INSTALL;then
 fi
 
 if $PRE_INSTALL;then
+    rm -rf /.config/waybar/*
     if [ $OS="nix" ];then
         nixos-generate-config -root /mnt
         nixos-install
@@ -492,7 +494,7 @@ install(){
 
         repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
         mkdir -p $USER_HOME/.config/waybar
-        ln -sfn $SHARED_CONFIG/mechabar $USER_HOME/.config/waybar
+        cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
         cp -r /etc/nixos/hardware-configuration.nix $SHARED_NIX_PATH
         git -C $SHARED_NIX_PATH add -f hardware-configuration.nix
@@ -523,7 +525,7 @@ install(){
         
         repo github.com/sejjy/mechabar $SHARED_CONFIG/mechabar
         mkdir -p $USER_HOME/.config/waybar
-        ln -sfn $SHARED_CONFIG/mechabar $USER_HOME/.config/waybar
+        cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
         env_add "SHARED_PATH=$SHARED_PATH"
         env_add "SHARED_MEDIA_PATH=$SHARED_MEDIA_PATH/wallpapers"
