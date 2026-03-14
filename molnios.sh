@@ -214,7 +214,7 @@ packages_p(){
     echo Backend + hyprland utilities.
     p brightnessctl blueman wtype
     echo Hyprland.
-    p hyprland hyprlock rofi rofi-emoji rofi-calc swww
+    p hyprland hyprlock rofi rofi-emoji rofi-calc swww cava
     echo Screenshots.
     p wl-clip-persist grim
     echo Clipboard.
