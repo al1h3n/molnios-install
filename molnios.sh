@@ -546,6 +546,11 @@ install(){
         mkdir -p $USER_HOME/.config/waybar
         cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
+        mkdir -p /home/al1h3n/.local/state/nix/profiles
+        mkdir -p /nix/var/nix/profiles/per-user/al1h3n
+        chown -R al1h3n:users /home/al1h3n/.local
+        chown -R al1h3n:users /nix/var/nix/profiles/per-user/al1h3n
+
         cp -r /etc/nixos/hardware-configuration.nix $SHARED_NIX_PATH
         git -C $SHARED_NIX_PATH add -f hardware-configuration.nix
         git -C $SHARED_NIX_PATH -c user.email="molnios@local" -c user.name="MolniOS" commit -m "add hardware-configuration.nix"
