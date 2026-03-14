@@ -308,6 +308,10 @@ symlinks(){
     ln -sfn $SHARED_PATH/sfx $USER_HOME/.local/share/molnios/sfx
     chown -hR $USER: $USER_HOME/.local/share/molnios
 
+    if [ $OS="nix" ];then
+        sed -i "s|\$musicplayer = spotify-launcher|\$musicplayer = spotify|g" $SHARED_CONFIG/hyprconfig
+    fi
+
     echo -e "${GREEN}Shared repo, path.sh and molnios.sh were symlinked to /usr/local/bin${RESET}"
 }
 
