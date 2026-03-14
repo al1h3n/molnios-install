@@ -6,7 +6,7 @@
 #                                             yyyyy
 # Support - al1h3n(tg,ds) | Donate me - paypal.me/al1h3n
 # MolniOS Downloader v1 - Pre-installations for dotfiles.
-# MolniuxOS (Arch), MolnixOS (nixOS), ArmiuxOS (Artix) included.
+# MolniuxOS (Arch), MolnixOS (nixOS), ArmiuxOS (Artix), MaconlyOS (macOS) included.
 # Part of the MolniOS project.
 
 # How it works?
@@ -45,7 +45,13 @@ exists(){
 
 CURRENT_DIR=$(pwd)
 USER="${SUDO_USER:-$USER}"
-USER_HOME=$(getent passwd "$USER" | cut -d: -f6)
+
+if [ $(uname) = "Darwin" ];then
+    USER_HOME=$(dscl . -read /Users/$USER NFSHomeDirectory | awk '{print $2}')
+else
+    USER_HOME=$(getent passwd $USER | cut -d: -f6)
+fi
+
 HOME_CONFIG=$USER_HOME/.config
 
 ENV_FILE=/etc/environment
@@ -64,6 +70,12 @@ elif exists apk;then
     OS="artix"
     SHARED_PATH=/usr/local/bin/molnios
     SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media
+elif [ $(uname) = "Darwin" ];then
+    OS="mac"
+    SHARED_PATH=$USER_HOME/maconlyos/shared
+    SHARED_MAC_PATH=$USER_HOME/maconlyos
+    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media
+    SHARED_REPO_MAC="gitlab.com/al1h3n/maconlyos"
 else
     echo -e "${RED}Error: your OS is unsupported.${RESET}"
     exit 1
@@ -245,6 +257,25 @@ packages_p(){
     echo -e "${GREEN}Packages were installed.${RESET}"
 }
 
+packages_b(){
+    prompt "installing packages via homebrew"
+
+    # Install brew if missing.
+    if ! exists brew; then
+        echo -e "${YELLOW}Homebrew not found, installing..${RESET}"
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    fi
+
+    brew install git curl
+    
+    echo Installing nix-darwin if missing.
+    if ! exists darwin-rebuild;then
+        nix run nix-darwin -- switch --flake $SHARED_MAC_PATH#main
+    fi
+
+    echo -e "${GREEN}Packages were installed.${RESET}"
+}
+
 cursor(){
     local cursor_name="clay_white"
     mkdir -p $USER_HOME/.local/share/icons/molnios/$cursor_name
@@ -412,13 +443,20 @@ dots_backup(){
 # 2.6. Main functions.
 update(){
     repo $SHARED_REPO $SHARED_PATH
-    symlinks
+    if [ ! $OS = "mac" ];then
+        symlinks
+    fi
     if [ $OS = "nix" ];then
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
         nix-channel --update
         nixos-rebuild switch --impure --upgrade
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         paru --noconfirm
+    elif [ $OS = "mac" ];then
+        repo $SHARED_REPO_MAC $SHARED_MAC_PATH
+        nix flake update --flake $SHARED_MAC_PATH
+        darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
+        brew upgrade
     else
         exit 1
     fi
@@ -435,6 +473,10 @@ remove(){
         prompt "removing files"
         dislaunch sweeper
         rm -rf $SHARED_PATH
+    elif [ $OS = "mac" ];then
+        prompt "removing MaconlyOS files"
+        rm -rf $SHARED_PATH
+        rm -rf $SHARED_MAC_PATH
     else
         exit 1
     fi
@@ -487,6 +529,7 @@ fi
 install(){
     symlinks_remove
     if [ $OS = "nix" ];then
+        nix-shell -p git
         repo $SHARED_REPO $SHARED_PATH
         mkdir -p $SHARED_MEDIA_PATH/wallpapers
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
@@ -538,6 +581,14 @@ install(){
         file "raw.githubusercontent.com/Alihan1ai9595/sweeper/main/sweeper.service" "/etc/systemd/system/sweeper.service"
         autolaunch sweeper&&rm /etc/systemd/system/sweeper.service&&cd $CURRENT_DIR&&echo -e "${GREEN}Sweeper was added to autolaunch!${RESET}"
         timedatectl set-local-rtc 1
+    elif [ $OS = "mac" ];then
+        packages_b
+        repo $SHARED_REPO $SHARED_PATH
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
+        repo $SHARED_REPO_MAC $SHARED_MAC_PATH
+
+        read -p "Adjust your configuration now and then hit enter."
+        darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
     else
         exit 1
     fi
