@@ -339,7 +339,7 @@ symlinks(){
     ln -sfn $SHARED_PATH/sfx $USER_HOME/.local/share/molnios/sfx
     chown -hR $USER: $USER_HOME/.local/share/molnios
 
-    if [ $OS="nix" ];then
+    if [ $OS = "nix" ];then
         sed -i "s|\$musicplayer = spotify-launcher|\$musicplayer = spotify|g" $SHARED_CONFIG/hyprconfig
     fi
 
@@ -503,7 +503,7 @@ if $DEBUG;then
 fi
 
 if $FRESH_INSTALL;then
-    if [ $OS="nix" ];then
+    if [ $OS = "nix" ];then
         rm -rf /etc/nixos/*
         nixos-generate-config
     fi
@@ -511,7 +511,7 @@ fi
 
 if $PRE_INSTALL;then
     rm -rf /.config/waybar/*
-    if [ $OS="nix" ];then
+    if [ $OS = "nix" ];then
         nixos-generate-config -root /mnt
         nixos-install
     fi
@@ -529,8 +529,11 @@ fi
 install(){
     symlinks_remove
     if [ $OS = "nix" ];then
-        nix-shell -p git
-        repo $SHARED_REPO $SHARED_PATH
+        if ! exists git;then
+            nix-shell -p git --run "git clone https://$SHARED_REPO.git $SHARED_PATH"
+        else
+            repo $SHARED_REPO $SHARED_PATH
+        fi
         mkdir -p $SHARED_MEDIA_PATH/wallpapers
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
         #/molnios-media-static&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
