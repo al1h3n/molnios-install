@@ -220,7 +220,7 @@ packages_p(){
     echo Clipboard.
     p cliphist
     echo Permissions.
-    p hyprpolkitagent
+    p polkit-gnome
     echo Tray.
     p waybar swaync # quickshell, dunst
 
