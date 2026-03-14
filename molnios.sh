@@ -221,7 +221,7 @@ packages_p(){
     echo RGB + accessories.
     p openrgb piper
     echo Configurations.
-    p zsh zsh-autosuggestions zsh-syntax-highlighting eza yazi fzf
+    p zsh zsh-autosuggestions zsh-syntax-highlighting eza yazi fzf zoxide
 
     echo Backend + hyprland utilities.
     p brightnessctl blueman wtype
