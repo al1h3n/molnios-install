@@ -301,7 +301,7 @@ symlinks(){
     chmod a+x /usr/local/bin/molnios.sh
 
     mkdir -p $USER_HOME/.local/share/molnios
-    ln -sfn $SHARED_MEDIA_PATH $USER_HOME/.local/share/molnios/media
+    ln -sfn $SHARED_MEDIA_PATH $USER_HOME/.local/share/molnios/molnios-media/wallpapers
     ln -sfn $SHARED_PATH/scripts $USER_HOME/.local/share/molnios/scripts
     ln -sfn $SHARED_PATH/config $USER_HOME/.local/share/molnios/config
     ln -sfn $SHARED_PATH/images $USER_HOME/.local/share/molnios/images
@@ -312,7 +312,7 @@ symlinks(){
 }
 
 symlinks_remove(){
-    rm -rf $USER_HOME/.local/share/molnios/media
+    rm -rf $USER_HOME/.local/share/molnios/molnios-media
     rm -rf $USER_HOME/.local/share/molnios/scripts
     rm -rf $USER_HOME/.local/share/molnios/config
     rm -rf $USER_HOME/.local/share/molnios/images
@@ -386,7 +386,7 @@ dots_backup(){
     mkdir -p $HOME_CONFIG/waypaper
     backup $HOME_CONFIG/waypaper/config.ini
     cp $SHARED_CONFIG/waypaper $HOME_CONFIG/waypaper/config.ini
-    sed -i "s|$USER_HOME/.local/share/molnios/wallpapers|$SHARED_MEDIA_PATH/wallpapers|g" \
+    sed -i "s|$USER_HOME/.local/share/molnios/molnios-media/wallpapers|$SHARED_MEDIA_PATH/wallpapers|g" \
         $HOME_CONFIG/waypaper/config.ini
 
     backup $HOME_CONFIG/qBittorrent/qBittorrent.conf
@@ -483,7 +483,8 @@ install(){
     if [ $OS = "nix" ];then
         repo $SHARED_REPO $SHARED_PATH
         mkdir -p $SHARED_MEDIA_PATH/wallpapers
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/molnios-media-static&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
+        #/molnios-media-static&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
         #repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/molnios-media-dynamic&&mv $SHARED_MEDIA_PATH/molnios-media-dynamic/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-dynamic
         
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
@@ -502,7 +503,7 @@ install(){
         cd $SHARED_PATH&&git add .
         read -p "Adjust your modules configuration now and then hit enter."
         nixos-rebuild switch --impure --upgrade --flake $SHARED_NIX_PATH#main
-        # Dirty git tree - isn't a problem. It happens when you didn't commit changes.
+        # ! Dirty git tree - isn't a problem. It happens when you didn't commit changes.
 
         # nix --extra-experimental-features 'nix-command flakes' flake update --flake $SHARED_NIX_PATH
         # git -C $SHARED_NIX_PATH add flake.lock
@@ -512,7 +513,8 @@ install(){
         backup $ENV_FILE
         packages_p
         repo $SHARED_REPO $SHARED_PATH
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH/molnios-media-static&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
+        #/molnios-media-static&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
         #repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/molnios-media-dynamic&&mv $SHARED_MEDIA_PATH/molnios-media-dynamic/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-dynamic
         symlinks
         dots_backup
