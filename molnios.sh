@@ -205,7 +205,7 @@ env_add(){ # Adds variable to /etc/environment
 }
 
 p(){ # Arch + Artix universal downloader.
-    pacman -Sy --needed --noconfirm $1
+    pacman -Sy --needed --noconfirm --overwrite='/usr/lib/libgcc*' --overwrite='/usr/lib/libstdc*' --overwrite='/usr/share/locale/*/libstdc*' --overwrite='/usr/share/licenses/gcc-libs/*' $1
 }
 
 packages_p(){
@@ -238,7 +238,7 @@ packages_p(){
 
     echo Installing paru.
     local type="paru-bin"
-    repo aur.archlinux.org/$type&&cd $type&&makepkg -si&&cd ..&&rm -rf $type&&cd $CURRENT_DIR
+    repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
     paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
@@ -400,21 +400,26 @@ dots_backup(){
     backup /etc/hosts
     ln -sfn $SHARED_CONFIG/config/hosts /etc/hosts
 
+    mkdir -p $HOME_CONFIG/fastfetch
     backup $HOME_CONFIG/fastfetch/config.jsonc
     ln -sfn $SHARED_CONFIG/fastfetch.jsonc $HOME_CONFIG/fastfetch/config.jsonc
 
+    mkdir -p $HOME_CONFIG/feh
     backup $HOME_CONFIG/feh/buttons
     ln -sfn $SHARED_CONFIG/feh $HOME_CONFIG/feh/buttons
 
+    mkdir -p $HOME_CONFIG/hypr
     backup $HOME_CONFIG/hypr/hyprland.conf
     ln -sfn $SHARED_CONFIG/hyprconfig $HOME_CONFIG/hypr/hyprland.conf
     ln -sfn $SHARED_CONFIG/custom $HOME_CONFIG/hypr/custom
 
+    mkdir -p $HOME_CONFIG/kitty
     backup $HOME_CONFIG/kitty/kitty.conf
     ln -sfn $SHARED_CONFIG/kitty $HOME_CONFIG/kitty/kitty.conf
     backup $HOME_CONFIG/kitty/kittystyle
     ln -sfn $SHARED_CONFIG/kittystyle $HOME_CONFIG/kitty/kittystyle
 
+    mkdir -p /etc/ly
     backup /etc/ly/config.ini
     ln -sfn $SHARED_CONFIG/ly /etc/ly/config.ini
 
@@ -424,6 +429,7 @@ dots_backup(){
     sed -i "s|$USER_HOME/.local/share/molnios/molnios-media/wallpapers|$SHARED_MEDIA_PATH/wallpapers|g" \
         $HOME_CONFIG/waypaper/config.ini
 
+    mkdir -p $HOME_CONFIG/qBittorrent/themes
     backup $HOME_CONFIG/qBittorrent/qBittorrent.conf
     ln -sfn $SHARED_CONFIG/qbittorrent $HOME_CONFIG/qBittorrent/qBittorrent.conf
     mkdir -p $HOME_CONFIG/qBittorrent/themes
