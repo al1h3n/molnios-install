@@ -276,6 +276,75 @@ packages_b(){
     echo -e "${GREEN}Packages were installed.${RESET}"
 }
 
+drivers_artix(){
+    echo -e "${BLUE}Detecting hardware...${RESET}"
+
+    # Detect virtualization first.
+    if exists vboxservice || lspci 2>/dev/null | grep -qi "VirtualBox"; then
+        echo -e "${GREEN}VirtualBox detected.${RESET}"
+        p virtualbox-guest-utils virtualbox-guest-modules-artix
+        return 0
+    fi
+
+    if exists vmware-checkvm || lspci 2>/dev/null | grep -qi "VMware"; then
+        echo -e "${GREEN}VMware detected.${RESET}"
+        p open-vm-tools xf86-video-vmware
+        autolaunch vmtoolsd
+        return 0
+    fi
+
+    # Detect GPU via lspci.
+    local gpu=$(lspci 2>/dev/null | grep -iE "VGA|3D|Display")
+    echo -e "GPU detected: ${BLUE}$gpu${RESET}"
+
+    if echo "$gpu" | grep -qi "nvidia"; then
+        echo -e "${GREEN}NVIDIA GPU detected.${RESET}"
+        prompt "installing NVIDIA drivers"
+        p nvidia nvidia-utils nvidia-settings lib32-nvidia-utils
+        # For older GPUs uncomment one of these instead:
+        # p nvidia-470xx-dkms nvidia-470xx-utils  # GTX 900 and older
+        # p nvidia-390xx-dkms nvidia-390xx-utils  # Even older
+        p cuda # Optional: CUDA support
+
+    elif echo "$gpu" | grep -qi "amd\|radeon\|advanced micro"; then
+        echo -e "${GREEN}AMD GPU detected.${RESET}"
+        prompt "installing AMD drivers"
+        p mesa lib32-mesa xf86-video-amdgpu vulkan-radeon lib32-vulkan-radeon
+        p libva-mesa-driver lib32-libva-mesa-driver mesa-vdpau lib32-mesa-vdpau
+        # Optional: ROCm for compute workloads
+        # p rocm-opencl-runtime
+
+    elif echo "$gpu" | grep -qi "intel arc\|intel.*xe"; then
+        echo -e "${GREEN}Intel Arc GPU detected.${RESET}"
+        prompt "installing Intel Arc drivers"
+        p mesa lib32-mesa vulkan-intel lib32-vulkan-intel
+        p intel-media-driver intel-compute-runtime level-zero-loader
+        # Arc may need newer kernel - check if zen is new enough
+        echo -e "${YELLOW}Note: Intel Arc works best on kernel 6.2+. Verify your kernel version.${RESET}"
+
+    elif echo "$gpu" | grep -qi "intel"; then
+        echo -e "${GREEN}Intel iGPU detected.${RESET}"
+        prompt "installing Intel iGPU drivers"
+        p mesa lib32-mesa vulkan-intel lib32-vulkan-intel
+        p intel-media-driver libva-intel-driver # intel-media-driver for Gen8+, libva-intel-driver for older
+
+    else
+        echo -e "${YELLOW}GPU not recognized: $gpu${RESET}"
+        echo -e "${YELLOW}Installing generic mesa drivers as fallback.${RESET}"
+        p mesa lib32-mesa xf86-video-vesa
+    fi
+
+    # Check for hybrid GPU (e.g. laptop with Intel iGPU + Nvidia dGPU).
+    local gpu_count=$(lspci 2>/dev/null | grep -icE "VGA|3D|Display")
+    if [ "$gpu_count" -gt 1 ]; then
+        echo -e "${YELLOW}Hybrid GPU setup detected ($gpu_count GPUs). Installing optimus manager.${RESET}"
+        paru -Sy --needed --noconfirm optimus-manager optimus-manager-qt
+        autolaunch optimus-manager
+    fi
+
+    echo -e "${GREEN}Drivers were installed.${RESET}"
+}
+
 cursor(){
     local cursor_name="clay_white"
     mkdir -p $USER_HOME/.local/share/icons/molnios/$cursor_name
@@ -579,6 +648,9 @@ install(){
         # git -C $SHARED_NIX_PATH update-index --assume-unchanged flake.lock
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         backup $ENV_FILE
+        if [ $OS = "artix" ];then
+            drivers_artix
+        fi
         packages_p
         repo $SHARED_REPO $SHARED_PATH
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
