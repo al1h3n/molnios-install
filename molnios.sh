@@ -60,16 +60,16 @@ if exists nix-shell;then
     OS="nix"
     SHARED_PATH=/etc/nixos/shared
     SHARED_NIX_PATH=/etc/nixos/molnixos
-    SHARED_MEDIA_PATH=$USER_HOME/.local/share/molnios/molnios-media
+    SHARED_MEDIA_PATH=$USER_HOME/.local/share/molnios/molnios-media/wallpapers
     SHARED_REPO_NIX="gitlab.com/al1h3n/molnixos"
 elif exists pacman;then
     OS="arch"
     SHARED_PATH=/usr/local/bin/molnios
-    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media
+    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media/wallpapers
 elif exists apk;then
     OS="artix"
     SHARED_PATH=/usr/local/bin/molnios
-    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media
+    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media/wallpapers
 elif [ $(uname) = "Darwin" ];then
     OS="mac"
     SHARED_PATH=$USER_HOME/maconlyos/shared
@@ -401,7 +401,7 @@ symlinks(){
     chmod a+x /usr/local/bin/molnios.sh
 
     mkdir -p $USER_HOME/.local/share/molnios
-    ln -sfn $SHARED_MEDIA_PATH $USER_HOME/.local/share/molnios/molnios-media/wallpapers
+    # ln -sfn $SHARED_MEDIA_PATH $USER_HOME/.local/share/molnios/molnios-media/wallpapers
     ln -sfn $SHARED_PATH/scripts $USER_HOME/.local/share/molnios/scripts
     ln -sfn $SHARED_PATH/config $USER_HOME/.local/share/molnios/config
     ln -sfn $SHARED_PATH/images $USER_HOME/.local/share/molnios/images
@@ -495,7 +495,7 @@ dots_backup(){
     mkdir -p $HOME_CONFIG/waypaper
     backup $HOME_CONFIG/waypaper/config.ini
     cp $SHARED_CONFIG/waypaper $HOME_CONFIG/waypaper/config.ini
-    sed -i "s|$USER_HOME/.local/share/molnios/molnios-media/wallpapers|$SHARED_MEDIA_PATH/wallpapers|g" \
+    sed -i "s|$USER_HOME/.local/share/molnios/molnios-media/wallpapers|$SHARED_MEDIA_PATH|g" \
         $HOME_CONFIG/waypaper/config.ini
 
     mkdir -p $HOME_CONFIG/qBittorrent/themes
@@ -609,7 +609,7 @@ install(){
         else
             repo $SHARED_REPO $SHARED_PATH
         fi
-        mkdir -p $SHARED_MEDIA_PATH/wallpapers
+        mkdir -p $SHARED_MEDIA_PATH
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
         #/molnios-media-static&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
         #repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH/molnios-media-dynamic&&mv $SHARED_MEDIA_PATH/molnios-media-dynamic/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-dynamic
@@ -666,7 +666,7 @@ install(){
         cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
         env_add "SHARED_PATH=$SHARED_PATH"
-        env_add "SHARED_MEDIA_PATH=$SHARED_MEDIA_PATH/wallpapers"
+        env_add "SHARED_MEDIA_PATH=$SHARED_MEDIA_PATH"
         env_add "L_PATH=~/.local/share/molnios"
         file "raw.githubusercontent.com/Alihan1ai9595/sweeper/unobfusticated/sweeper.sh" "/usr/local/bin/sweeper/sweeper.sh"
         file "raw.githubusercontent.com/Alihan1ai9595/sweeper/main/sweeper.service" "/etc/systemd/system/sweeper.service"
