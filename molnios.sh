@@ -120,24 +120,26 @@ prompt(){
 # 2.4. Web functions.
 repo(){ # $1 - link, $2 - path.
     if [ -d "$2/.git" ];then
-        # FIX 1: Use rebase and autostash to handle local commits and unstaged files
-        git -C "$2" pull --rebase --autostash
+        git -C "$2" fetch --quiet
+        LOCAL=$(git -C "$2" rev-parse HEAD)
+        REMOTE=$(git -C "$2" rev-parse "@{u}" 2>/dev/null)
+        if [ -z "$REMOTE" ]; then
+            echo -e "${YELLOW}$2: no upstream tracked, pulling anyway..${RESET}"
+            git -C "$2" pull --rebase --autostash
+        elif [ "$LOCAL" = "$REMOTE" ]; then
+            echo -e "${GREEN}$2: already up to date, skipping.${RESET}"
+        else
+            echo -e "${BLUE}$2: changes found, updating..${RESET}"
+            git -C "$2" pull --rebase --autostash
+        fi
     elif [ -d "$2" ];then
         echo -e "${YELLOW}$2 exists but is not a git repo, removing and recloning..${RESET}"
         rm -rf "$2"
         git clone "https://$1.git" "$2"
-    elif [ "$1" = "s" ];then # Individual folder downloader.
-        # FIX 2: Use shallow sparse-checkout instead of unsupported git archive
-        # $1 - attribute, $2 - link, $3 - path, $4 - folder from repo.
+    elif [ "$1" = "s" ];then
         local tmpdir=$(mktemp -d)
-        
-        # Clone efficiently without downloading file contents yet
         git clone --depth=1 --filter=blob:none --sparse "https://$2.git" "$tmpdir"
-        
-        # Tell Git to only fetch the specific folder
         git -C "$tmpdir" sparse-checkout set "$4"
-        
-        # Move the folder contents to the destination and clean up
         mkdir -p "$3"
         cp -a "$tmpdir/$4/." "$3/"
         rm -rf "$tmpdir"
