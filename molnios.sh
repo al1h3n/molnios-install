@@ -222,7 +222,8 @@ packages_p(){
     p openrgb piper
     echo Configurations.
     p zsh zsh-autosuggestions zsh-syntax-highlighting eza yazi fzf zoxide
-
+    echo OCR
+    p tesseract tesseract-data-eng tesseract-data-rus tesseract-data-chi_sim slurp wl-clipboard
     echo Backend + hyprland utilities.
     p brightnessctl blueman wtype
     echo Hyprland.
@@ -231,10 +232,14 @@ packages_p(){
     p wl-clip-persist grim
     echo Clipboard.
     p cliphist
+    echo 
     echo Permissions.
-    p polkit-gnome
+    p hyprpolkitagent # polkit-gnome
     echo Tray.
     p waybar swaync # quickshell, dunst
+    echo Man.
+    p tldr
+    tldr --update
 
     echo Installing paru.
     local type="paru-bin"
@@ -242,7 +247,7 @@ packages_p(){
 
     echo Use hyprland uwsm if you have systemd.
     paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
-    paru -Sy --needed --noconfirm yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin
+    paru -Sy --needed --noconfirm yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin
     # openoffice-bin
 
     echo JRE 8 for 1.16.5 and older, 21 for 1.17-1.21.11, 25 for 26.x+. Install JRE instead of JDK. Adoptium is better in any case.
@@ -527,6 +532,7 @@ update(){
         nixos-rebuild switch --impure --upgrade
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         paru --noconfirm
+        tldr --update
     elif [ $OS = "mac" ];then
         repo $SHARED_REPO_MAC $SHARED_MAC_PATH
         nix flake update --flake $SHARED_MAC_PATH
