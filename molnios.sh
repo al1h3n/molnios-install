@@ -6,14 +6,18 @@
 #                                             yyyyy
 # Support - al1h3n(tg,ds) | Donate me - paypal.me/al1h3n
 # MolniOS Downloader v1 - Pre-installations for dotfiles.
-# MolniuxOS (Arch), MolnixOS (nixOS), ArmiuxOS (Artix), MaconlyOS (macOS) included.
 # Part of the MolniOS project.
+
+# ! CHANGE APPROACH TO NIX
 
 # How it works?
 # 1. Script checks which OS you have.
 # 2. Script applies required flags.
 # 3. Makes requied actions (backing directories/files or updates existing git repos if needed)
 # ==============================================================================
+
+# Currently script suppports following OS:
+# Arch, Artix, Alpine, Debian, nixOS, macOS.
 
 # 1. Variables definition.
 
@@ -62,12 +66,14 @@ if exists nix-shell;then
     SHARED_NIX_PATH=/etc/nixos/molnixos
     SHARED_MEDIA_PATH=$USER_HOME/.local/share/molnios/molnios-media/wallpapers
     SHARED_REPO_NIX="gitlab.com/al1h3n/molnixos"
-elif exists pacman;then
-    OS="arch"
-    SHARED_PATH=/usr/local/bin/molnios
-    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media/wallpapers
-elif exists apk;then
-    OS="artix"
+elif exists pacman || exists apt || exists apk;then
+    if exists pacman;then
+        OS="arch"
+    elif exists apt;then
+        OS="debian"
+    elif exists apk;then
+        OS="alpine"
+    fi
     SHARED_PATH=/usr/local/bin/molnios
     SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media/wallpapers
 elif [ $(uname) = "Darwin" ];then
@@ -164,6 +170,17 @@ dislaunch(){
     systemctl disable --now $1
 }
 
+# For Alpine specifically (enabling SSH)
+autolaunch_openrc(){
+    rc-update add $1 default
+    rc-service $1 start
+}
+
+dislaunch_openrc(){
+    rc-service $1 stop
+    rc-update del $1 default
+}
+
 backup(){
     for target in $@;do
         if [ -L $target ];then
@@ -210,6 +227,14 @@ p(){ # Arch + Artix universal downloader.
     pacman -Sy --needed --noconfirm --overwrite='/usr/lib/libgcc*' --overwrite='/usr/lib/libstdc*' --overwrite='/usr/share/locale/*/libstdc*' --overwrite='/usr/share/licenses/gcc-libs/*' $1
 }
 
+ap(){
+    apk add --no-cache $1
+}
+
+de(){
+    apt install -y $1
+}
+
 packages_p(){
     prompt "installing packages via pacman"
 
@@ -231,7 +256,7 @@ packages_p(){
     echo Hyprland.
     p hyprland hyprlock rofi rofi-emoji rofi-calc swww cava
     echo Screenshots.
-    p wl-clip-persist grim
+    p wl-clip-persist grim slurp
     echo Clipboard.
     p cliphist
     echo 
@@ -252,7 +277,7 @@ packages_p(){
     paru -Sy --needed --noconfirm yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin
     # openoffice-bin
 
-    echo JRE 8 for 1.16.5 and older, 21 for 1.17-1.21.11, 25 for 26.x+. Install JRE instead of JDK. Adoptium is better in any case.
+    echo "JRE 8 for 1.16.5 and older, 21 for 1.17-1.21.11, 25 for 26.x+. Install JRE instead of JDK (wastes less space). Adoptium is better in any case."
     pacman -Sy steam prismlauncher # jre21-openjdk
     xdg-settings set default-web-browser firefox.desktop
 
@@ -261,6 +286,58 @@ packages_p(){
 
     # ZSH shift select
     repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
+    echo -e "${GREEN}Packages were installed.${RESET}"
+}
+
+packages_apt(){
+    prompt "installing packages via apt"
+
+    apt update && apt upgrade -y
+
+    echo Main packages + important programs.
+    de build-essential openssh-server git curl wget fastfetch \
+        fonts-jetbrains-mono mpv btop neovim
+
+    echo GUI applications.
+    de firefox-esr thunar gvfs ffmpegthumbnailer
+
+    echo Configurations.
+    de zsh zsh-autosuggestions zsh-syntax-highlighting fzf eza zoxide yazi
+
+    echo Backend utilities.
+    de brightnessctl blueman wtype dbus-x11
+
+    echo Wayland + compositor.
+    de hyprland xwayland wayland-protocols rofi-wayland swww
+
+    echo Screenshots + clipboard.
+    de grim slurp wl-clipboard cliphist
+
+    echo Tray + notifications.
+    de waybar
+
+    echo OCR.
+    de tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-chi-sim
+
+    echo Developing.
+    de python3 pipx
+
+    echo Man.
+    de tldr
+    tldr --update
+
+    # MPV theme.
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/tomasklaen/uosc/HEAD/installers/unix.sh)"
+
+    # ZSH shift select
+    repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
+
+    systemctl enable --now ssh
+    xdg-settings set default-web-browser firefox-esr.desktop
+
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # cargo installation
+    repo github.com/Linus789/wl-clip-persist /tmp/wl-clip-persist&&cd /tmp/wl-clip-persist&&cargo build --release&&cp target/release/wl-clip-persist /usr/local/bin&&rm -rf /tmp/wl-clip-persist&&cd $CURRENT_DIR
+
     echo -e "${GREEN}Packages were installed.${RESET}"
 }
 
@@ -658,8 +735,13 @@ install(){
         backup $ENV_FILE
         if [ $OS = "artix" ];then
             drivers_artix
+        elif [ $OS = "arch" ];then
+            packages_p
+        elif [ $OS = "debian" ];then
+            packages_apt
+        elif [ $OS = "alpine" ];then
+            packages_apk
         fi
-        packages_p
         repo $SHARED_REPO $SHARED_PATH
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
         #/molnios-media-static&&mv $SHARED_MEDIA_PATH/molnios-media-static/* $SHARED_MEDIA_PATH/wallpapers&&rm -rf $SHARED_MEDIA_PATH/molnios-media-static
