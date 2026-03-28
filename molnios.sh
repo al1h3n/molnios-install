@@ -160,9 +160,7 @@ file(){ # Individual file downloader.
 
 # 2.7. Imperative functions.
 
-s(){
-    sudo -u $USER "$@"
-}
+s(){ su - $USER -c "$*"; } # Launch as user.
 
 autolaunch(){
     systemctl daemon-reload
@@ -275,7 +273,8 @@ packages_p(){
 
     echo Installing paru.
     local type="paru-bin"
-    sudo -u $USER repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&s makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
+    s "git clone https://aur.archlinux.org/$type.git /tmp/$type && cd /tmp/$type && makepkg -si --needed --noconfirm"
+    rm -rf /tmp/$type&&cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
     paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
