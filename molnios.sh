@@ -273,7 +273,7 @@ packages_p(){
 
     echo Installing paru.
     local type="paru-bin"
-    s "git clone https://aur.archlinux.org/$type.git /tmp/$type && cd /tmp/$type && makepkg -si --needed --noconfirm"
+    s "git clone https://aur.archlinux.org/$type.git /tmp/$type && cd /tmp/$type && makepkg -si --needed"
     rm -rf /tmp/$type&&cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
