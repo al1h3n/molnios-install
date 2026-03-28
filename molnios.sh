@@ -161,7 +161,7 @@ file(){ # Individual file downloader.
 # 2.7. Imperative functions.
 
 s(){ # Run as user command.
-    runuser -u $USER -- "$@"
+    su - $USER -c "$*"
 }
 
 autolaunch(){
