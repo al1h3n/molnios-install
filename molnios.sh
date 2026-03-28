@@ -275,7 +275,7 @@ packages_p(){
 
     echo Installing paru.
     local type="paru-bin"
-    repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&s makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
+    s repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&s makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
     paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
