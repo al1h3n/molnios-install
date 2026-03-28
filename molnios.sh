@@ -277,7 +277,8 @@ packages_p(){
     local type="paru-bin"
     repo aur.archlinux.org/$type /tmp/$type
     chown -R $USER:$USER /tmp/$type
-    s "cd /tmp/$type && makepkg -si --noconfirm"
+    echo "Write following commands and then hit Enter, launch another shell window with Ctrl+Alt+Number and return with Ctrl+Alt+1"
+    read -p "cd /tmp/$type&&makepkg --needed --noconfirm -si"
     rm -rf /tmp/$type
     cd $CURRENT_DIR
 
