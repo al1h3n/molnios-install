@@ -289,7 +289,7 @@ packages_p(){
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/tomasklaen/uosc/HEAD/installers/unix.sh)"
 
     # ZSH shift select
-    repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
+    s "git clone https://github.com/jirutka/zsh-shift-select.git $USER_HOME/.local/share/zsh/plugins/zsh-shift-select"
     echo -e "${GREEN}Packages were installed.${RESET}"
 }
 
