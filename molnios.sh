@@ -275,7 +275,7 @@ packages_p(){
 
     echo Installing paru.
     local type="paru-bin"
-    s repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&s makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
+    sudo -u $USER repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&s makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
     paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
@@ -736,6 +736,7 @@ install(){
         # git -C $SHARED_NIX_PATH -c user.email="molnios@local" -c user.name="MolniOS" commit -m "update flake.lock"
         # git -C $SHARED_NIX_PATH update-index --assume-unchanged flake.lock
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
+        rm -rf /tmp/paru*
         backup $ENV_FILE
         if [ $OS = "artix" ];then
             drivers_artix
