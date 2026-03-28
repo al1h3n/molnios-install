@@ -544,6 +544,7 @@ dots_clean(){
     rm -f $HOME_CONFIG/qBittorrent/qBittorrent.conf
     restore $HOME_CONFIG/qBittorrent/qBittorrent.conf
     rm -rf $USER_HOME/.local/share/molnios
+    rm -rf $USER_HOME/Screenshots
     echo -e "${GREEN}Existing symlinks were cleaned.${RESET}"
 }
 
@@ -706,14 +707,14 @@ install(){
         mkdir -p $USER_HOME/.config/waybar
         cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
-        mkdir -p /home/al1h3n/.local/state/nix/profiles
+        mkdir -p $USER_HOME/.local/state/nix/profiles
         mkdir -p /nix/var/nix/profiles/per-user/al1h3n
-        chown -R al1h3n:users /home/al1h3n/.local
+        chown -R al1h3n:users $USER_HOME/.local
         chown -R al1h3n:users /nix/var/nix/profiles/per-user/al1h3n
 
-        mkdir -p /home/al1h3n/.config/dconf
-        mkdir -p /home/al1h3n/.config
-        chown -R al1h3n:users /home/al1h3n
+        mkdir -p /$USER_HOME/.config/dconf
+        mkdir -p $USER_HOME/Screenshots
+        chown -R al1h3n:users $USER_HOME
         chmod 700 /home/al1h3n
 
         cp -r /etc/nixos/hardware-configuration.nix $SHARED_NIX_PATH
