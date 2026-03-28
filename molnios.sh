@@ -277,8 +277,7 @@ packages_p(){
     local type="paru-bin"
     repo aur.archlinux.org/$type /tmp/$type
     chown -R $USER:$USER /tmp/$type
-    cd /tmp/$type
-    su - $USER -c "cd /tmp/$type && makepkg -si --noconfirm"
+    s "cd /tmp/$type && makepkg -si --noconfirm"
     rm -rf /tmp/$type
     cd $CURRENT_DIR
 
