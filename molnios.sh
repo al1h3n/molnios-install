@@ -159,6 +159,11 @@ file(){ # Individual file downloader.
 }
 
 # 2.7. Imperative functions.
+
+s(){
+    sudo -u $USER "$@"
+}
+
 autolaunch(){
     systemctl daemon-reload
     systemctl enable --now $1.service
@@ -270,7 +275,7 @@ packages_p(){
 
     echo Installing paru.
     local type="paru-bin"
-    repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&sudo -u $USER makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
+    repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&s makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
     paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
@@ -285,7 +290,7 @@ packages_p(){
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/tomasklaen/uosc/HEAD/installers/unix.sh)"
 
     # ZSH shift select
-    repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
+    s repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
     echo -e "${GREEN}Packages were installed.${RESET}"
 }
 
