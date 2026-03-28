@@ -160,8 +160,8 @@ file(){ # Individual file downloader.
 
 # 2.7. Imperative functions.
 
-s(){ # Run as user command.
-    su - $USER -c "$*"
+s(){
+    sudo -u $USER "$@"
 }
 
 autolaunch(){
@@ -275,12 +275,7 @@ packages_p(){
 
     echo Installing paru.
     local type="paru-bin"
-    repo aur.archlinux.org/$type /tmp/$type
-    chown -R $USER:$USER /tmp/$type
-    echo "Write following commands and then hit Enter, launch another shell window with Ctrl+Alt+Number and return with Ctrl+Alt+1"
-    read -p "cd /tmp/$type&&makepkg --needed --noconfirm -si"
-    rm -rf /tmp/$type
-    cd $CURRENT_DIR
+    repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&s makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
     paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
@@ -295,7 +290,7 @@ packages_p(){
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/tomasklaen/uosc/HEAD/installers/unix.sh)"
 
     # ZSH shift select
-    s repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
+    repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
     echo -e "${GREEN}Packages were installed.${RESET}"
 }
 
