@@ -235,9 +235,9 @@ p(){ # Arch + Artix universal downloader.
 pa(){
     # paru has some errors - 29.03.2026
     if exists yay;then
-        yay -Sy --needed --noconfirm "$@"
+        s yay -Sy --needed --noconfirm "$@"
     elif exists paru;then
-        paru -Sy --needed --noconfirm "$@"
+        s paru -Sy --needed --noconfirm "$@"
     fi
 }
 
@@ -656,9 +656,9 @@ update(){
         nixos-rebuild switch --impure --upgrade
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         if exists yay;then
-            yay --noconfirm
+            s yay --noconfirm
         elif exists paru;then
-            paru --noconfirm
+            s paru --noconfirm
         fi
         tldr --update
     elif [ $OS = "mac" ];then
