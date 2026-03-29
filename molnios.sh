@@ -243,7 +243,7 @@ de(){
 }
 
 packages_p(){
-    prompt "installing packages via pacman"
+    prompt "installing packages via pacman (YOU MUST INSTALL PARU-BIN TOO)"
     pacman -Syu --noconfirm
 
     sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/{s/^#//}' /etc/pacman.conf
@@ -276,14 +276,14 @@ packages_p(){
     p tldr
     tldr --update
 
-    local type="paru-bin"
-    p pacman rust
-    repo aur.archlinux.org/$type /tmp/$type
-    chown -R $USER: /tmp/$type
-    su - $USER -c "cd /tmp/$type && makepkg -s --needed --noconfirm"
-    pacman -U --noconfirm /tmp/$type/$type-*.pkg.tar.zst
-    rm -rf /tmp/$type
-    cd $CURRENT_DIR
+    # local type="paru-bin"
+    # p pacman rust
+    # repo aur.archlinux.org/$type /tmp/$type
+    # chown -R $USER: /tmp/$type
+    # su - $USER -c "cd /tmp/$type && makepkg -s --needed --noconfirm"
+    # pacman -U --noconfirm /tmp/$type/$type-*.pkg.tar.zst
+    # rm -rf /tmp/$type
+    # cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
     pa temurin-bin-21 temurin-bin-25
