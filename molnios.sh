@@ -227,7 +227,11 @@ env_add(){ # Adds variable to /etc/environment
 }
 
 p(){ # Arch + Artix universal downloader.
-    pacman -Sy --needed --noconfirm --overwrite='/usr/lib/libgcc*' --overwrite='/usr/lib/libstdc*' --overwrite='/usr/share/locale/*/libstdc*' --overwrite='/usr/share/licenses/gcc-libs/*' $1
+    pacman -Sy --needed --noconfirm --overwrite='/usr/lib/libgcc*' --overwrite='/usr/lib/libstdc*' --overwrite='/usr/share/locale/*/libstdc*' --overwrite='/usr/share/licenses/gcc-libs/*' "$@"
+}
+
+pa(){
+    paru -Sy --needed --noconfirm "$@"
 }
 
 ap(){
@@ -279,8 +283,8 @@ packages_p(){
     cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
-    paru -Sy --needed --noconfirm temurin-bin-21 temurin-bin-25
-    paru -Sy --needed --noconfirm yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin
+    pa temurin-bin-21 temurin-bin-25
+    pa yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin
     # openoffice-bin
 
     echo "JRE 8 for 1.16.5 and older, 21 for 1.17-1.21.11, 25 for 26.x+. Install JRE instead of JDK (wastes less space). Adoptium is better in any case."
@@ -429,7 +433,7 @@ drivers_artix(){
     local gpu_count=$(lspci 2>/dev/null | grep -icE "VGA|3D|Display")
     if [ "$gpu_count" -gt 1 ]; then
         echo -e "${YELLOW}Hybrid GPU setup detected ($gpu_count GPUs). Installing optimus manager.${RESET}"
-        paru -Sy --needed --noconfirm optimus-manager optimus-manager-qt
+        pa optimus-manager optimus-manager-qt
         autolaunch optimus-manager
     fi
 
