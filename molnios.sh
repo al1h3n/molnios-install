@@ -294,9 +294,10 @@ packages_p(){
     # cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
-    pa temurin-bin-21 temurin-bin-25
-    pa yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin spicetify-cli spicetify-marketplace-bin
-    spicetify&&spicetify config custom_apps marketplace&&spicetify backup apply
+    echo "Run these commands and then hit enter:"
+    echo "[yay/paru] -Sy --needed temurin-bin-21 temurin-bin-25 yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin spicetify-cli spicetify-marketplace-bin"
+    echo "spicetify&&spicetify config custom_apps marketplace&&spicetify backup apply"
+    read
     # openoffice-bin
 
     echo "JRE 8 for 1.16.5 and older, 21 for 1.17-1.21.11, 25 for 26.x+. Install JRE instead of JDK (wastes less space). Adoptium is better in any case."
