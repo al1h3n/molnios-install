@@ -244,6 +244,7 @@ de(){
 
 packages_p(){
     prompt "installing packages via pacman"
+    pacman -Syu --noconfirm
 
     sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/{s/^#//}' /etc/pacman.conf
     echo Main packages + fonts + important programs.
@@ -275,8 +276,8 @@ packages_p(){
     p tldr
     tldr --update
 
-    local type="paru"
-    p pacman rust base-devel
+    local type="paru-bin"
+    p pacman rust
     repo aur.archlinux.org/$type /tmp/$type
     chown -R $USER: /tmp/$type
     su - $USER -c "cd /tmp/$type && makepkg -s --needed --noconfirm"
