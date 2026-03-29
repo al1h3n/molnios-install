@@ -233,7 +233,12 @@ p(){ # Arch + Artix universal downloader.
 }
 
 pa(){
-    paru -Sy --needed --noconfirm "$@"
+    # paru has some errors - 29.03.2026
+    if exists yay;then
+        yay -Sy --needed --noconfirm "$@"
+    elif exists paru;then
+        paru -Sy --needed --noconfirm "$@"
+    fi
 }
 
 ap(){
@@ -245,7 +250,7 @@ de(){
 }
 
 packages_p(){
-    prompt "installing packages via pacman (YOU MUST INSTALL PARU-BIN TOO)"
+    prompt "installing packages via pacman (YOU MUST INSTALL YAY/PARU TOO)"
     pacman -Syu --noconfirm
 
     sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/{s/^#//}' /etc/pacman.conf
@@ -650,7 +655,11 @@ update(){
         nix-channel --update
         nixos-rebuild switch --impure --upgrade
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
-        paru --noconfirm
+        if exists yay;then
+            yay --noconfirm
+        elif exists paru;then
+            paru --noconfirm
+        fi
         tldr --update
     elif [ $OS = "mac" ];then
         repo $SHARED_REPO_MAC $SHARED_MAC_PATH
