@@ -293,7 +293,15 @@ packages_p(){
     # rm -rf /tmp/$type
     # cd $CURRENT_DIR
 
-    echo Use hyprland uwsm if you have systemd.
+    echo -e "${RED}Use hyprland uwsm if you have systemd.${RESET}"
+
+    echo '''To install AUR manager type this (change yay to paru if you want):
+    sudo pacman -S --needed git base-devel
+    git clone https://aur.archlinux.org/yay-bin.git
+    cd yay
+    makepkg -si
+    '''
+
     echo "Run these commands and then hit enter:"
     echo '''[yay/paru] -Sy --needed temurin-bin-21 temurin-bin-25
     yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper
