@@ -257,13 +257,13 @@ packages_p(){
     echo Main packages + fonts + important programs.
     p base-devel openssh git fastfetch countryfetch ttf-jetbrains-mono-nerd mpv btop font-manager neovim
     echo GUI applications.
-    p firefox qbittorrent obs-studio thunar gvfs ffmpegthumbnailer obsidian cpu-x songrec
+    p firefox obs-studio thunar gvfs ffmpegthumbnailer obsidian cpu-x songrec anki
     echo Developing.
     p python-pipx breeze virt-manager
     echo RGB + accessories.
-    p openrgb piper
+    p openrgb piper gamemode
     echo Configurations.
-    p zsh zsh-autosuggestions zsh-syntax-highlighting eza yazi fzf zoxide
+    p zsh zsh-autosuggestions zsh-syntax-highlighting eza yazi fzf zoxide tealdeer zenity bat
     chsh -s $(which zsh) $USER
     echo OCR
     p tesseract tesseract-data-eng tesseract-data-rus tesseract-data-chi_sim slurp wl-clipboard
@@ -295,7 +295,13 @@ packages_p(){
 
     echo Use hyprland uwsm if you have systemd.
     echo "Run these commands and then hit enter:"
-    echo "[yay/paru] -Sy --needed temurin-bin-21 temurin-bin-25 yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin spicetify-cli spicetify-marketplace-bin"
+    echo '''[yay/paru] -Sy --needed temurin-bin-21 temurin-bin-25
+    yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper
+    mpvpaper-git mpvpaper-stop-git apple-fonts
+    zsh-theme-powerlevel10k-git zsh-autocomplete-git
+    hyprshell vscodium-bin pay-respects-bin spicetify-cli spicetify-marketplace-bin
+    zinit qbittorrent-enhanced we10x-icon-theme-git mactahoe-icon-theme-git
+    '''
     echo "spicetify&&spicetify config custom_apps marketplace&&spicetify backup apply"
     read
     # openoffice-bin
@@ -791,7 +797,7 @@ install(){
         # repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
         symlinks
         dots_backup
-        icons_install
+        # icons_install
         font_install
         cursor
         
