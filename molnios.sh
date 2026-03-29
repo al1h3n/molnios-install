@@ -278,7 +278,10 @@ packages_p(){
     local type="paru-bin"
     repo aur.archlinux.org/$type /tmp/$type
     chown -R $USER: /tmp/$type
-    su - $USER -c "cd /tmp/$type && makepkg -si --needed --noconfirm"
+    # Build without installing (-s = sync deps, no -i)
+    su - $USER -c "cd /tmp/$type && makepkg -s --needed --noconfirm"
+    # Install as root directly — no sudo prompt needed
+    pacman -U --noconfirm /tmp/$type/$type-*.pkg.tar.zst
     rm -rf /tmp/$type
     cd $CURRENT_DIR
 
