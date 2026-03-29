@@ -271,18 +271,21 @@ packages_p(){
     p tldr
     tldr --update
 
-    echo Installing paru.
     local type="paru-bin"
-    s "git clone https://aur.archlinux.org/$type.git /tmp/$type && cd /tmp/$type && makepkg -si --needed"
-    rm -rf /tmp/$type&&cd $CURRENT_DIR
+    repo aur.archlinux.org/$type /tmp/$type
+    chown -R $USER: /tmp/$type
+    su - $USER -c "cd /tmp/$type && makepkg -si --needed --noconfirm"
+    rm -rf /tmp/$type
+    cd $CURRENT_DIR
 
     echo Use hyprland uwsm if you have systemd.
-    paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
+    paru -Sy --needed --noconfirm temurin-bin-21 temurin-bin-25
     paru -Sy --needed --noconfirm yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin
     # openoffice-bin
 
     echo "JRE 8 for 1.16.5 and older, 21 for 1.17-1.21.11, 25 for 26.x+. Install JRE instead of JDK (wastes less space). Adoptium is better in any case."
-    pacman -Sy steam prismlauncher # jre21-openjdk
+    echo "JRE 8 recommended, cause 21 and 25 is already installed."
+    pacman -Sy steam prismlauncher # jre8-openjdk
     xdg-settings set default-web-browser firefox.desktop
 
     # MPV theme.
