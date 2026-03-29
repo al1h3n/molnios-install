@@ -275,14 +275,15 @@ packages_p(){
     p tldr
     tldr --update
 
-    local type="paru"  # ← source, not paru-bin
+    local type="paru"
+    p pacman rust base-devel
     repo aur.archlinux.org/$type /tmp/$type
     chown -R $USER: /tmp/$type
     su - $USER -c "cd /tmp/$type && makepkg -s --needed --noconfirm"
     pacman -U --noconfirm /tmp/$type/$type-*.pkg.tar.zst
     rm -rf /tmp/$type
     cd $CURRENT_DIR
-    
+
     echo Use hyprland uwsm if you have systemd.
     pa temurin-bin-21 temurin-bin-25
     pa yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin
