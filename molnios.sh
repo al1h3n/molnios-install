@@ -19,6 +19,8 @@
 # Currently script suppports following OS:
 # Arch, Artix, Alpine, Debian, nixOS, macOS.
 
+# To do in future: nix for all OS, check symlinking.
+
 # 1. Variables definition.
 
 # 1.1. Colors.
@@ -60,7 +62,7 @@ HOME_CONFIG=$USER_HOME/.config
 
 ENV_FILE=/etc/environment
 
-if exists nix-shell;then
+if exists nixos-rebuild;then
     OS="nix"
     SHARED_PATH=/etc/nixos/shared
     SHARED_NIX_PATH=/etc/nixos/molnixos
@@ -75,12 +77,12 @@ elif exists pacman || exists apt || exists apk;then
         OS="alpine"
     fi
     SHARED_PATH=/usr/local/bin/molnios
-    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media/wallpapers
+    SHARED_MEDIA_PATH=$SHARED_PATH/molnios-media/wallpapers
 elif [ $(uname) = "Darwin" ];then
     OS="mac"
     SHARED_PATH=$USER_HOME/maconlyos/shared
     SHARED_MAC_PATH=$USER_HOME/maconlyos
-    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media
+    SHARED_MEDIA_PATH=$SHARED_PATH/molnios-media
     SHARED_REPO_MAC="gitlab.com/al1h3n/maconlyos"
 else
     echo -e "${RED}Error: your OS is unsupported.${RESET}"
@@ -257,6 +259,7 @@ packages_p(){
     p openrgb piper
     echo Configurations.
     p zsh zsh-autosuggestions zsh-syntax-highlighting eza yazi fzf zoxide
+    chsh -s $(which zsh) $USER
     echo OCR
     p tesseract tesseract-data-eng tesseract-data-rus tesseract-data-chi_sim slurp wl-clipboard
     echo Backend + hyprland utilities.
@@ -443,17 +446,43 @@ drivers_artix(){
     echo -e "${GREEN}Drivers were installed.${RESET}"
 }
 
+cursor_name="clay_white"
+
 cursor(){
-    local cursor_name="clay_white"
-    mkdir -p $USER_HOME/.local/share/icons/molnios/$cursor_name
-    cp -r $SHARED_PATH/cursors/* $USER_HOME/.local/share/icons/molnios
+    mkdir -p $USER_HOME/.local/share/icons/$cursor_name
+    cp -r $SHARED_PATH/cursors/$cursor_name $USER_HOME/.local/share/icons
     echo -e "${GREEN}Cursor was installed.${RESET}"
 }
 
 cursor_remove(){
-    rm -rf $USER_HOME/.local/share/icons/molnios
+    rm -rf $USER_HOME/.local/share/icons/molnios/$cursor_name
     rm -rf /usr/share/icons/molnios
     echo -e "${GREEN}Cursor was removed.${RESET}"
+}
+
+font_install(){ # JetBrains Mono Nerd Font
+    prompt "changing default font"
+    mkdir -p /etc/fonts/conf.d
+    cat > /etc/fonts/local.conf <<EOF
+<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <alias>
+    <family>sans-serif</family>
+    <prefer><family>JetBrainsMono Nerd Font</family></prefer>
+  </alias>
+  <alias>
+    <family>serif</family>
+    <prefer><family>JetBrainsMono Nerd Font</family></prefer>
+  </alias>
+  <alias>
+    <family>monospace</family>
+    <prefer><family>JetBrainsMono Nerd Font</family></prefer>
+  </alias>
+</fontconfig>
+EOF
+    fc-cache -fv
+    echo -e "${GREEN}Default font set to JetBrains Mono Nerd Font.${RESET}"
 }
 
 icons_install(){
@@ -505,11 +534,6 @@ symlinks(){
     ln -sfn $SHARED_PATH/images $USER_HOME/.local/share/molnios/images
     ln -sfn $SHARED_PATH/sfx $USER_HOME/.local/share/molnios/sfx
     chown -hR $USER: $USER_HOME/.local/share/molnios
-
-    if [ $OS = "nix" ];then
-        sed -i "s|\$musicplayer = spotify-launcher|\$musicplayer = spotify|g" $SHARED_CONFIG/hyprconfig
-    fi
-
     echo -e "${GREEN}Shared repo, path.sh and molnios.sh were symlinked to /usr/local/bin${RESET}"
 }
 
@@ -518,7 +542,7 @@ symlinks_remove(){
     rm -rf $USER_HOME/.local/share/molnios/scripts
     rm -rf $USER_HOME/.local/share/molnios/config
     rm -rf $USER_HOME/.local/share/molnios/images
-    rm -rf $USER_HOME/.local/share/molnios/sfx
+    rm -rf $USER_HOME/.local/share/molnios/sfx # Because of video repo
     rm -rf /usr/local/bin/path.sh
     rm -rf /usr/local/bin/molnios.sh
 }
@@ -642,8 +666,8 @@ remove(){
     rm -rf /.config/waybar/*
     if [ $OS = "nix" ];then
         prompt "removing files - CAN BREAK YOUR SYSTEM"
-        rm -rf $SHARED_PATH/*
-        rm -rf $SHARED_NIX_PATH/*
+        rm -rf $SHARED_PATH
+        rm -rf $SHARED_NIX_PATH
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         prompt "removing files"
         dislaunch sweeper
@@ -667,7 +691,7 @@ if $DEBUG;then
     if ping -q -c 1 -W 1 8.8.8.8 >/dev/null;then
         echo -e "Internet: ${GREEN}working${RESET}."
     else
-        echo -e Fx"Internet: ${RED}not working${RESET}."
+        echo -e "Internet: ${RED}not working${RESET}."
     fi
     if exists git;then
         echo -e "Git: ${FINISH}existing.${RESET}"
@@ -685,9 +709,9 @@ if $FRESH_INSTALL;then
 fi
 
 if $PRE_INSTALL;then
-    rm -rf /.config/waybar/*
+    rm -rf /.config/waybar
     if [ $OS = "nix" ];then
-        nixos-generate-config -root /mnt
+        nixos-generate-config --root /mnt
         nixos-install
     fi
     exit 0
@@ -711,7 +735,7 @@ install(){
         fi
         mkdir -p $SHARED_MEDIA_PATH
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
-        #repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
+        # repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
         symlinks
 
@@ -738,12 +762,7 @@ install(){
         cd $SHARED_PATH&&git add .
         read -p "Adjust your modules configuration now and then hit enter."
         nixos-rebuild switch --impure --upgrade --flake $SHARED_NIX_PATH#main
-        # ! Dirty git tree - isn't a problem. It happens when you didn't commit changes.
-
-        # nix --extra-experimental-features 'nix-command flakes' flake update --flake $SHARED_NIX_PATH
-        # git -C $SHARED_NIX_PATH add flake.lock
-        # git -C $SHARED_NIX_PATH -c user.email="molnios@local" -c user.name="MolniOS" commit -m "update flake.lock"
-        # git -C $SHARED_NIX_PATH update-index --assume-unchanged flake.lock
+        # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         rm -rf /tmp/paru*
         backup $ENV_FILE
@@ -758,10 +777,11 @@ install(){
         fi
         repo $SHARED_REPO $SHARED_PATH
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
-        #repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
+        # repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
         symlinks
         dots_backup
         icons_install
+        font_install
         cursor
         
         git clone -b fix/v0.14.0 https://github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
