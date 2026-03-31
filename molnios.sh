@@ -249,6 +249,28 @@ de(){
     apt install -y $1
 }
 
+nix_install(){
+    if [ $OS = "mac" ];then
+        symlinks
+    fi
+    if [ $OS = "nix" ];then
+        repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
+        nix-channel --update
+        nixos-rebuild switch --impure --upgrade
+    elif [ $OS = "arch" ] || [ $OS = "artix" ];then
+        paru --noconfirm
+        tldr --update
+    elif [ $OS = "mac" ];then
+        repo $SHARED_REPO_MAC $SHARED_MAC_PATH
+        nix flake update --flake $SHARED_MAC_PATH
+        darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
+        brew upgrade
+    else
+        exit 1
+    fi
+    exit 0
+}
+
 packages_p(){
     prompt "installing packages via pacman (YOU MUST INSTALL YAY/PARU TOO)"
     pacman -Syu --noconfirm
