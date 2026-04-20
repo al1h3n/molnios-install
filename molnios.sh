@@ -773,6 +773,7 @@ if $REMOVE;then
 fi
 
 install(){
+    git config --global http.followRedirects true
     symlinks_remove
     if [ $OS = "nix" ];then
         if ! exists git;then
