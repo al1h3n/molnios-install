@@ -813,9 +813,9 @@ install(){
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
 
         BREEZE_COLORS=$(nix eval --raw nixpkgs#kdePackages.breeze)/share/color-schemes/BreezeDark.colors
+        mkdir -p ~/.config/qt6ct ~/.config/qt5ct
         rm ~/.config/qt6ct/qt6ct.conf
         rm ~/.config/qt5ct/qt5ct.conf
-        mkdir -p ~/.config/qt6ct ~/.config/qt5ct
 
         cat > ~/.config/qt6ct/qt6ct.conf << EOF
         [Appearance]
