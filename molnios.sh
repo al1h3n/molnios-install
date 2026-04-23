@@ -811,6 +811,27 @@ install(){
         read -p "Adjust your modules configuration now and then hit enter."
         nixos-rebuild switch --impure --upgrade --flake $SHARED_NIX_PATH#main
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
+
+        BREEZE_COLORS=$(nix eval --raw nixpkgs#kdePackages.breeze)/share/color-schemes/BreezeDark.colors
+        rm ~/.config/qt6ct/qt6ct.conf
+        rm ~/.config/qt5ct/qt5ct.conf
+        mkdir -p ~/.config/qt6ct ~/.config/qt5ct
+
+        cat > ~/.config/qt6ct/qt6ct.conf << EOF
+        [Appearance]
+        icon_theme=MacTahoe
+        style=Breeze-Dark
+        color_scheme_path=$BREEZE_COLORS
+        custom_palette=true
+        EOF
+
+        cat > ~/.config/qt5ct/qt5ct.conf << EOF
+        [Appearance]
+        icon_theme=MacTahoe
+        style=Breeze-Dark
+        color_scheme_path=$BREEZE_COLORS
+        custom_palette=true
+        EOF
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         rm -rf /tmp/paru*
         backup $ENV_FILE
