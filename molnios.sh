@@ -818,20 +818,20 @@ install(){
         rm ~/.config/qt5ct/qt5ct.conf
 
         cat > ~/.config/qt6ct/qt6ct.conf << EOF
-        [Appearance]
-        icon_theme=MacTahoe
-        style=Breeze-Dark
-        color_scheme_path=$BREEZE_COLORS
-        custom_palette=true
-        EOF
+[Appearance]
+icon_theme=MacTahoe
+style=Breeze-Dark
+color_scheme_path=$BREEZE_COLORS
+custom_palette=true
+EOF
 
         cat > ~/.config/qt5ct/qt5ct.conf << EOF
-        [Appearance]
-        icon_theme=MacTahoe
-        style=Breeze-Dark
-        color_scheme_path=$BREEZE_COLORS
-        custom_palette=true
-        EOF
+[Appearance]
+icon_theme=MacTahoe
+style=Breeze-Dark
+color_scheme_path=$BREEZE_COLORS
+custom_palette=true
+EOF
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         rm -rf /tmp/paru*
         backup $ENV_FILE
