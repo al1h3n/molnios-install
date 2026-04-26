@@ -787,10 +787,6 @@ install(){
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
         symlinks
 
-        git clone -b fix/v0.14.0 https://github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
-        mkdir -p $USER_HOME/.config/waybar
-        cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
-
         mkdir -p $USER_HOME/.local/state/nix/profiles
         mkdir -p /nix/var/nix/profiles/per-user/al1h3n
         chown -R al1h3n:users $USER_HOME/.local
@@ -852,10 +848,6 @@ EOF
         # icons_install
         font_install
         cursor
-        
-        git clone -b fix/v0.14.0 https://github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
-        mkdir -p $USER_HOME/.config/waybar
-        cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
         env_add "SHARED_PATH=$SHARED_PATH"
         env_add "SHARED_MEDIA_PATH=$SHARED_MEDIA_PATH"
