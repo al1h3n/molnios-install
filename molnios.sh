@@ -804,7 +804,7 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
         cd $SHARED_PATH&&git add .
-        read -p $'${YELLOW}Adjust your modules configuration now and then hit enter.${RESET}'
+        echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
         nixos-rebuild switch --impure --upgrade --flake $SHARED_NIX_PATH#main
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
 
