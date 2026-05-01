@@ -256,7 +256,7 @@ nix_install(){
     if [ $OS = "nix" ];then
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
         nix-channel --update
-        nixos-rebuild switch --impure --upgrade
+        nixos-rebuild switch --impure --upgrade-all
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         paru --noconfirm
         tldr --update
@@ -690,7 +690,7 @@ update(){
     if [ $OS = "nix" ];then
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
         nix-channel --update
-        nixos-rebuild switch --impure --upgrade
+        nixos-rebuild switch --impure --upgrade-all
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         if exists yay;then
             s yay --noconfirm
@@ -805,7 +805,7 @@ install(){
 
         cd $SHARED_PATH&&git add .
         echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
-        nixos-rebuild switch --impure --upgrade --flake $SHARED_NIX_PATH#main
+        nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
 
         BREEZE_COLORS=$(nix eval --raw nixpkgs#kdePackages.breeze)/share/color-schemes/BreezeDark.colors
