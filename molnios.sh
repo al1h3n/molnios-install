@@ -641,26 +641,26 @@ dots_backup(){
 
     mkdir -p $HOME_CONFIG/feh
     backup $HOME_CONFIG/feh/buttons
-    ln -sfn $SHARED_CONFIG/feh $HOME_CONFIG/feh/buttons
+    ln -sfn $SHARED_CONFIG/feh.conf $HOME_CONFIG/feh/buttons
 
     mkdir -p $HOME_CONFIG/hypr
     backup $HOME_CONFIG/hypr/hyprland.conf
-    ln -sfn $SHARED_CONFIG/hyprconfig $HOME_CONFIG/hypr/hyprland.conf
-    ln -sfn $SHARED_CONFIG/custom $HOME_CONFIG/hypr/custom
+    ln -sfn $SHARED_CONFIG/hyprland-monolithic/hypr.conf $HOME_CONFIG/hypr/hyprland.conf
+    # ln -sfn $SHARED_CONFIG/hyprland-monolithic/custom $HOME_CONFIG/hypr/custom
 
     mkdir -p $HOME_CONFIG/kitty
     backup $HOME_CONFIG/kitty/kitty.conf
-    ln -sfn $SHARED_CONFIG/kitty $HOME_CONFIG/kitty/kitty.conf
+    ln -sfn $SHARED_CONFIG/kitty.conf $HOME_CONFIG/kitty/kitty.conf
     backup $HOME_CONFIG/kitty/kittystyle
-    ln -sfn $SHARED_CONFIG/kittystyle $HOME_CONFIG/kitty/kittystyle
+    ln -sfn $SHARED_CONFIG/kitty-style.conf $HOME_CONFIG/kitty/kitty-style.conf
 
     mkdir -p /etc/ly
     backup /etc/ly/config.ini
-    ln -sfn $SHARED_CONFIG/ly /etc/ly/config.ini
+    ln -sfn $SHARED_CONFIG/ly.ini /etc/ly/config.ini
 
     mkdir -p $HOME_CONFIG/waypaper
     backup $HOME_CONFIG/waypaper/config.ini
-    cp $SHARED_CONFIG/waypaper $HOME_CONFIG/waypaper/config.ini
+    cp $SHARED_CONFIG/waypaper.ini $HOME_CONFIG/waypaper/config.ini
     sed -i "s|$USER_HOME/.local/share/molnios/molnios-media/wallpapers|$SHARED_MEDIA_PATH|g" \
         $HOME_CONFIG/waypaper/config.ini
 
