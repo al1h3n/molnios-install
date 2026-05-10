@@ -23,13 +23,22 @@
 
 # 1. Variables definition.
 
-# 1.1. Colors.
-GREEN="\e[32m"
-FINISH="\033[38;5;46m" # Special green finish value.
-YELLOW="\e[33m"
-RED="\e[31m"
-BLUE="\x1B[36m"
-RESET="\e[0m"
+# 1.1. Colors (gruvbox theme).
+# bright_green  #b8bb26
+GREEN="\033[38;2;184;187;38m"
+# neutral_green #98971a
+FINISH="\033[38;2;152;151;26m"
+# bright_yellow #fabd2f
+YELLOW="\033[38;2;250;189;47m"
+# bright_red #fb4934
+RED="\033[38;2;251;73;52m"
+# bright_aqua #8ec07c
+BLUE="\033[38;2;142;192;124m"
+# light1 #ebdbb2
+WHITE="\033[38;2;235;219;178m"
+# dark0 #282828
+BG="\033[48;2;40;40;40m"
+RESET="\033[0m"
 
 # 1.2. Actions. By default post-install with auto OS definition.
 DEBUG=false # More outputs. [d]
@@ -564,20 +573,20 @@ icons_uninstall(){
 }
 
 symlinks(){
-    mkdir -p /usr/local/bin
-    cp $SHARED_PATH/scripts/path.sh /usr/local/bin/path.sh
-    cp $(readlink -f $0) /usr/local/bin/molnios.sh
-    chmod a+x $SHARED_PATH/scripts/path.sh
-    chmod a+x /usr/local/bin/molnios.sh
-
+    if [ ! $OS = "nix" ];then
+        mkdir -p /usr/local/bin
+        cp $SHARED_PATH/scripts/path.sh /usr/local/bin/path.sh
+        cp $(readlink -f $0) /usr/local/bin/molnios.sh
+        chmod a+x $SHARED_PATH/scripts/path.sh
+        chmod a+x /usr/local/bin/molnios.sh
+    fi
     mkdir -p $USER_HOME/.local/share/molnios
-    # ln -sfn $SHARED_MEDIA_PATH $USER_HOME/.local/share/molnios/molnios-media/wallpapers
     ln -sfn $SHARED_PATH/scripts $USER_HOME/.local/share/molnios/scripts
     ln -sfn $SHARED_PATH/config $USER_HOME/.local/share/molnios/config
     ln -sfn $SHARED_PATH/images $USER_HOME/.local/share/molnios/images
     ln -sfn $SHARED_PATH/sfx $USER_HOME/.local/share/molnios/sfx
     chown -hR $USER: $USER_HOME/.local/share/molnios
-    echo -e "${GREEN}Shared repo, path.sh and molnios.sh were symlinked to /usr/local/bin${RESET}"
+    echo -e "${GREEN}Everything was successfully symlinked.${RESET}"
 }
 
 symlinks_remove(){
@@ -853,8 +862,8 @@ EOF
         env_add "SHARED_PATH=$SHARED_PATH"
         env_add "SHARED_MEDIA_PATH=$SHARED_MEDIA_PATH"
         env_add "L_PATH=~/.local/share/molnios"
-        file "raw.githubusercontent.com/Alihan1ai9595/sweeper/unobfusticated/sweeper.sh" "/usr/local/bin/sweeper/sweeper.sh"
-        file "raw.githubusercontent.com/Alihan1ai9595/sweeper/main/sweeper.service" "/etc/systemd/system/sweeper.service"
+        file "raw.githubusercontent.com/al1h3n/sweeper/refs/heads/main/sweeper.sh" "/usr/local/bin/sweeper/sweeper.sh"
+        file "raw.githubusercontent.com/al1h3n/sweeper/refs/heads/main/sweeper.service" "/etc/systemd/system/sweeper.service"
         autolaunch sweeper&&rm /etc/systemd/system/sweeper.service&&cd $CURRENT_DIR&&echo -e "${GREEN}Sweeper was added to autolaunch!${RESET}"
         timedatectl set-local-rtc 1
     elif [ $OS = "mac" ];then
