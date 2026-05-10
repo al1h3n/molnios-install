@@ -894,3 +894,5 @@ echo -e "${FINISH}==========================================${RESET}"
 echo -e "${FINISH}      PRE-INSTALLATION COMPLETE!           ${RESET}"
 echo -e "${FINISH}==========================================${RESET}"
 echo -e "               ...now configure what you need..."
+
+exit 0
