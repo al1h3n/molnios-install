@@ -878,7 +878,8 @@ style=Breeze-Dark
 color_scheme_path=$BREEZE_COLORS
 custom_palette=true
 EOF
-        nix-store --optimise
+    nix-store --optimise
+    return 0
     elif [ $OS = "arch" ];then
         rm -rf /tmp/paru*
         backup $ENV_FILE
