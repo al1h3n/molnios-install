@@ -58,6 +58,7 @@ DOWNLOAD_VIDEO_WALLPAPERS=false
 DOWNLOAD_PHOTO_WALLPAPERS=false
 PROMPT=true
 NO_BACKUPS=false
+REBOOT=false
 
 OS="not supported"
 SHARED_PATH="not existing"
@@ -78,6 +79,7 @@ Options:
   -nb, --no-backups       Disable symlink backups.
   -u, --update            Update existing installation.
   -r, --remove            Remove existing installation.
+  -re, --reboot           Reboot after installation.
 
 Other options:
   -H, --help, -?, --?     Show this help message.
@@ -101,6 +103,7 @@ while [[ $# -gt 0 ]];do
     -u|--update) UPDATE=true;;
     -r|--remove) REMOVE=true;;
     -cg|--collect-garbage) COLLECT_GARBAGE=true;;
+    -re|--reboot) REBOOT=true;;
     -H|--help|-?|--?) usage;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
   esac
@@ -935,5 +938,9 @@ echo -e "${FINISH}==========================================${RESET}"
 echo -e "${FINISH}      PRE-INSTALLATION COMPLETE!           ${RESET}"
 echo -e "${FINISH}==========================================${RESET}"
 echo -e "               ...now configure what you need..."
+
+if [ $REBOOT != false ];then
+    reboot
+fi
 
 exit 0
