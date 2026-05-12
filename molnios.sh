@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # MM    MM              dd           bb                         lll  1  hh      333333
 # MMM  MMM   aa aa      dd   eee     bb      yy   yy      aa aa lll 111 hh         3333 nn nnn
 # MM MM MM  aa aaa  dddddd ee   e    bbbbbb  yy   yy     aa aaa lll  11 hhhhhh    3333  nnn  nn
@@ -41,14 +42,67 @@ BG="\033[48;2;40;40;40m"
 RESET="\033[0m"
 
 # 1.2. Actions. By default post-install with auto OS definition.
-DEBUG=false # More outputs. [d]
-FRESH_INSTALL=false # Delete and download all repos again [f].
-PRE_INSTALL=false # Pre-install actions. [p]
+
+# Nix related.
+NIX_INSTALLED=false # Detection of nix.
+NO_NIX=false # Script disable of nix.
+ONLY_HOME=false
+
 UPDATE=false # Update your system and existing configurations. [u]
-REMOVE=false # Delete all existing MolniOS files. [r]
+REMOVE=false # Delete all existing MolniOS files.
+
+DEBUG=false
+FRESH_INSTALL=false
+DOWNLOAD_VIDEO_WALLPAPERS=false
+DOWNLOAD_PHOTO_WALLPAPERS=false
+PROMPT=true
+NO_BACKUPS=false
 
 OS="not supported"
 SHARED_PATH="not existing"
+
+usage() {
+cat <<EOF
+Usage: $(basename "$0") [OPTIONS]
+
+Options:
+  -d, --debug             Enable debug mode.
+  -f, --force             Force fresh installation.
+  -dv, --download-videos  Download video wallpapers (~2.1GiB).
+  -dp, --download-photos  Download photo wallpapers (~711MiB).
+  -np, --no-prompt        Disable prompt for configuration adjustments.
+  -h, --home              Run only "home-manager switch".
+  -nn, --no-nix           Disable Nix even if it exists; abort on NixOS.
+  -nb, --no-backups       Disable symlink backups.
+  -u, --update            Update existing installation.
+  -r, --remove            Remove existing installation.
+
+Other options:
+  -H, --help, -?, --?     Show this help message.
+
+Notes:
+  - Flags with no arguments act as toggles.
+  - Unknown options will trigger an error and display this usage.
+EOF
+}
+
+while [[ $# -gt 0 ]];do
+  case $1 in
+    -d|--debug) DEBUG=true;; # Force fresh install.
+    -f|--force) FRESH_INSTALL=true;; # Force fresh install.
+    -dv|--download-videos) DOWNLOAD_VIDEO_WALLPAPERS=true;; # Add media-dynamic repo (~2.1GiB!).
+    -dp|--download-photos) DOWNLOAD_PHOTO_WALLPAPERS=true;; # Add media-static repo (~711MiB!).
+    -np|--no-prompt) SHOW_PROMPT=false;; # Show prompt to adjust configurations.
+    -h|--home) ONLY_HOME=true;; # Run only "home-manager switch".
+    -nn|--no-nix) NO_NIX=true;; # Disable nix even if it exists. On nixOS, aborts installation.
+    -nb|--no-backups) NO_BACKUPS=true;; # Disables symlink backups.
+    -u|--update) UPDATE=true;;
+    -r|--remove) REMOVE=true;;
+    -H|--help|-?|--?) usage;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
+  esac
+  shift
+done
 
 # 1.3. Local paths.
 # x_PATH - path for shared files such as configurations, scripts etc.
@@ -98,6 +152,10 @@ else
     exit 1
 fi
 
+if exists nix;then
+    NIX_INSTALLED=true;
+fi
+
 # 1.4. Web paths.
 SHARED_REPO="gitlab.com/al1h3n/molnios-shared"
 SHARED_MEDIA_STATIC_REPO="gitlab.com/al1h3n/molnios-media-static"
@@ -112,29 +170,21 @@ if [ $EUID -ne 0 ];then
     exec sudo sh $0 $@
 fi
 
-# 2.2. Arguments handling.
-while getopts "dfpur" opt; do
-    case $opt in
-        d) DEBUG=true ;;
-        f) FRESH_INSTALL=true ;;
-        p) PRE_INSTALL=true ;;
-        u) UPDATE=true ;;
-        r) REMOVE=true ;;
-        \?) echo -e "${RED}Invalid option: -$OPTARG${RESET}" >&2; usage ;;
-    esac
-done
-
-# 2.3. Input functions.
+# 2.2. Input functions.
 prompt(){
-    read -p "Do you want to proceed with $1? (y/n) " yn
-    case $yn in
-        [Yy]* ) echo -e "${BLUE}Proceeding..${RESET}";;
-        * ) echo -e "${GREEN}Getting out..${RESET}"; exit;;
-    esac
-    return 0
+    if $SHOW_PROMPT;then
+        read -p "Do you want to proceed with $1? (y/n) " yn
+        case $yn in
+            [Yy]* ) echo -e "${BLUE}Proceeding..${RESET}";;
+            * ) echo -e "${GREEN}Getting out..${RESET}"; exit;;
+        esac
+        return 0
+    else
+        echo "Procced with $1 -> skipped.."
+    fi
 }
 
-# 2.4. Web functions.
+# 2.3. Web functions.
 repo(){ # $1 - link, $2 - path.
     if [ -d "$2/.git" ];then
         git -C "$2" fetch --quiet
@@ -162,6 +212,15 @@ repo(){ # $1 - link, $2 - path.
         rm -rf "$tmpdir"
     else
         git clone "https://$1.git" "$2"
+    fi
+}
+
+media(){
+    if [ DOWNLOAD_PHOTO_WALLPAPERS = true ];then
+        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
+    fi
+    if [ DOWNLOAD_VIDEO_WALLPAPERS = true ];then
+        repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
     fi
 }
 
@@ -259,25 +318,11 @@ de(){
 }
 
 nix_install(){
-    if [ $OS = "mac" ];then
-        symlinks
-    fi
-    if [ $OS = "nix" ];then
-        repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
-        nix-channel --update
-        nixos-rebuild switch --impure --upgrade-all
-    elif [ $OS = "arch" ] || [ $OS = "artix" ];then
-        paru --noconfirm
-        tldr --update
-    elif [ $OS = "mac" ];then
-        repo $SHARED_REPO_MAC $SHARED_MAC_PATH
-        nix flake update --flake $SHARED_MAC_PATH
-        darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
-        brew upgrade
+    if [[ $OS != "nix" && $NO_NIX != true ]];then
+        sh <(curl --proto '=https' --tlsv1.2 -L https://nixos.org/nix/install) --daemon
     else
-        exit 1
+        echo -e "nix wasn't installed: you either have nixOS or disabled nix in arguments."
     fi
-    exit 0
 }
 
 packages_p(){
@@ -306,7 +351,6 @@ packages_p(){
     p wl-clip-persist grim slurp
     echo Clipboard.
     p cliphist
-    echo 
     echo Permissions.
     p hyprpolkitagent # polkit-gnome
     echo Tray.
@@ -420,7 +464,7 @@ packages_b(){
     fi
 
     brew install git curl
-    
+
     echo Installing nix-darwin if missing.
     if ! exists darwin-rebuild;then
         nix run nix-darwin -- switch --flake $SHARED_MAC_PATH#main
@@ -499,7 +543,6 @@ drivers_artix(){
 }
 
 cursor_name="clay_white"
-
 cursor(){
     mkdir -p $USER_HOME/.local/share/icons/$cursor_name
     cp -r $SHARED_PATH/cursors/$cursor_name $USER_HOME/.local/share/icons
@@ -539,16 +582,16 @@ EOF
 
 icons_install(){
     prompt "installing icon themes"
-    
+
     # We10X
     local tmpdir=$(mktemp -d)
     git clone --depth=1 https://github.com/yeyushengfan258/We10X-icon-theme.git $tmpdir/we10x
     sh $tmpdir/we10x/install.sh -d /usr/share/icons -t black
-    
+
     # MacTahoe
     git clone --depth=1 https://github.com/vinceliuice/MacTahoe-icon-theme.git $tmpdir/mactahoe
     sh $tmpdir/mactahoe/install.sh -d /usr/share/icons -t default
-    
+
     rm -rf $tmpdir
 
     # Set default icon theme for Qt
@@ -613,81 +656,77 @@ dots_restore(){
 }
 
 dots_clean(){
-    rm -f /etc/hosts
-    restore /etc/hosts
-    rm -f $HOME_CONFIG/fastfetch/config.jsonc
-    restore $HOME_CONFIG/fastfetch/config.jsonc
-    rm -f $HOME_CONFIG/feh/buttons
-    restore $HOME_CONFIG/feh/buttons
-    rm -f $HOME_CONFIG/hypr/hyprland.conf
-    restore $HOME_CONFIG/hypr/hyprland.conf
-    rm -f $HOME_CONFIG/kitty/kitty.conf
-    restore $HOME_CONFIG/kitty/kitty.conf
-    rm -f $HOME_CONFIG/kitty/kittystyle
-    restore $HOME_CONFIG/kitty/kittystyle
-    rm -f $HOME_CONFIG/waybar/config
-    restore $HOME_CONFIG/waybar/config
-    rm -f $HOME_CONFIG/waypaper/config.ini
-    restore $HOME_CONFIG/waypaper/config.ini
-    rm -f /etc/ly/config.ini
-    restore /etc/ly/config.ini
-    rm -f $HOME_CONFIG/qBittorrent/qBittorrent.conf
-    restore $HOME_CONFIG/qBittorrent/qBittorrent.conf
-    rm -rf $USER_HOME/.local/share/molnios
-    rm -rf $USER_HOME/Screenshots
-    echo -e "${GREEN}Existing symlinks were cleaned.${RESET}"
+        rm -f /etc/hosts
+        restore /etc/hosts
+        rm -f $HOME_CONFIG/fastfetch/config.jsonc
+        restore $HOME_CONFIG/fastfetch/config.jsonc
+        rm -f $HOME_CONFIG/feh/buttons
+        restore $HOME_CONFIG/feh/buttons
+        rm -f $HOME_CONFIG/hypr/hyprland.conf
+        restore $HOME_CONFIG/hypr/hyprland.conf
+        rm -f $HOME_CONFIG/kitty/kitty.conf
+        restore $HOME_CONFIG/kitty/kitty.conf
+        rm -f $HOME_CONFIG/kitty/kittystyle
+        restore $HOME_CONFIG/kitty/kittystyle
+        rm -f $HOME_CONFIG/waybar/config
+        restore $HOME_CONFIG/waybar/config
+        rm -f $HOME_CONFIG/waypaper/config.ini
+        restore $HOME_CONFIG/waypaper/config.ini
+        rm -f /etc/ly/config.ini
+        restore /etc/ly/config.ini
+        rm -f $HOME_CONFIG/qBittorrent/qBittorrent.conf
+        restore $HOME_CONFIG/qBittorrent/qBittorrent.conf
+        rm -rf $USER_HOME/.local/share/molnios
+        rm -rf $USER_HOME/Screenshots
+        echo -e "${GREEN}Existing symlinks were cleaned.${RESET}"
 }
 
 dots_backup(){
-    dots_clean
-    
-    backup /etc/hosts
+    if [ $NO_BACKUPS ];then
+        echo -e "Backups were disabled."
+    else
+        dots_clean
+        backup /etc/hosts
+        backup $HOME_CONFIG/fastfetch/config.jsonc
+        backup $HOME_CONFIG/feh/buttons
+        backup $HOME_CONFIG/hypr/hyprland.conf
+        backup $HOME_CONFIG/kitty/kitty.conf
+        backup $HOME_CONFIG/kitty/kittystyle
+        backup /etc/ly/config.ini
+        backup $HOME_CONFIG/waypaper/config.ini
+        backup $HOME_CONFIG/qBittorrent/qBittorrent.conf
+    fi
     ln -sfn $SHARED_CONFIG/config/hosts /etc/hosts
 
     mkdir -p $HOME_CONFIG/fastfetch
-    backup $HOME_CONFIG/fastfetch/config.jsonc
     ln -sfn $SHARED_CONFIG/fastfetch.jsonc $HOME_CONFIG/fastfetch/config.jsonc
 
     mkdir -p $HOME_CONFIG/feh
-    backup $HOME_CONFIG/feh/buttons
     ln -sfn $SHARED_CONFIG/feh.conf $HOME_CONFIG/feh/buttons
 
     mkdir -p $HOME_CONFIG/hypr
-    backup $HOME_CONFIG/hypr/hyprland.conf
-    ln -sfn $SHARED_CONFIG/hyprland-monolithic/hypr.conf $HOME_CONFIG/hypr/hyprland.conf
-    # ln -sfn $SHARED_CONFIG/hyprland-monolithic/custom $HOME_CONFIG/hypr/custom
+    ln -sfn $SHARED_CONFIG/hyprland-monolithic/hypr.conf $HOME_CONFIG/hypr/hyprland.conf # TODO: change path to lua config when 0.55 will be released.
+    ln -sfn $SHARED_CONFIG/hyprland-monolithic/custom $HOME_CONFIG/hypr/custom
 
     mkdir -p $HOME_CONFIG/kitty
-    backup $HOME_CONFIG/kitty/kitty.conf
     ln -sfn $SHARED_CONFIG/kitty.conf $HOME_CONFIG/kitty/kitty.conf
-    backup $HOME_CONFIG/kitty/kittystyle
     ln -sfn $SHARED_CONFIG/kitty-style.conf $HOME_CONFIG/kitty/kitty-style.conf
 
     mkdir -p /etc/ly
-    backup /etc/ly/config.ini
     ln -sfn $SHARED_CONFIG/ly.ini /etc/ly/config.ini
 
     mkdir -p $HOME_CONFIG/waypaper
-    backup $HOME_CONFIG/waypaper/config.ini
+
     cp $SHARED_CONFIG/waypaper.ini $HOME_CONFIG/waypaper/config.ini
     sed -i "s|$USER_HOME/.local/share/molnios/molnios-media/wallpapers|$SHARED_MEDIA_PATH|g" \
         $HOME_CONFIG/waypaper/config.ini
 
     mkdir -p $HOME_CONFIG/qBittorrent/themes
-    backup $HOME_CONFIG/qBittorrent/qBittorrent.conf
     ln -sfn $SHARED_CONFIG/qbittorrent $HOME_CONFIG/qBittorrent/qBittorrent.conf
     mkdir -p $HOME_CONFIG/qBittorrent/themes
     for theme in $SHARED_CONFIG/qbit-themes/*.qbtheme; do
         ln -sfn $theme $HOME_CONFIG/qBittorrent/themes/$(basename $theme)
     done
-
-    local kitty_conf=$HOME_CONFIG/kitty/kitty.conf
-    local line='include ${L_PATH}/config/kitty'
-    if ! grep -qF "$line" $kitty_conf; then
-        echo "include ${L_PATH}/config/kitty" >> $kitty_conf
-    else
-        echo "Kitty include already exists, skipping."
-    fi  
 }
 
 # 2.6. Main functions.
@@ -696,10 +735,14 @@ update(){
     if [ ! $OS = "mac" ];then
         symlinks
     fi
+    if [[ $OS != "nix" && $NO_NIX != true ]];then
+        nix flake update
+        home-manager switch --impure --flake $SHARED_NIX_PATH#main
+    fi
     if [ $OS = "nix" ];then
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
         nix-channel --update
-        nixos-rebuild switch --impure --upgrade-all
+        nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
     elif [ $OS = "arch" ] || [ $OS = "artix" ];then
         if exists yay;then
             s yay --noconfirm
@@ -719,21 +762,18 @@ update(){
 }
 
 remove(){
-    rm -rf /.config/waybar/*
     if [ $OS = "nix" ];then
         prompt "removing files - CAN BREAK YOUR SYSTEM"
         rm -rf $SHARED_PATH
         rm -rf $SHARED_NIX_PATH
-    elif [ $OS = "arch" ] || [ $OS = "artix" ];then
-        prompt "removing files"
-        dislaunch sweeper
-        rm -rf $SHARED_PATH
     elif [ $OS = "mac" ];then
         prompt "removing MaconlyOS files"
         rm -rf $SHARED_PATH
         rm -rf $SHARED_MAC_PATH
     else
-        exit 1
+        prompt "removing files"
+        dislaunch sweeper
+        rm -rf $SHARED_PATH
     fi
     exit 0
 }
@@ -761,16 +801,9 @@ if $FRESH_INSTALL;then
     if [ $OS = "nix" ];then
         rm -rf /etc/nixos/*
         nixos-generate-config
+    else
+        rm -rf ./molnios*
     fi
-fi
-
-if $PRE_INSTALL;then
-    rm -rf /.config/waybar
-    if [ $OS = "nix" ];then
-        nixos-generate-config --root /mnt
-        nixos-install
-    fi
-    exit 0
 fi
 
 if $UPDATE;then
@@ -783,7 +816,6 @@ fi
 
 install(){
     git config --global http.followRedirects true
-    symlinks_remove
     if [ $OS = "nix" ];then
         if ! exists git;then
             nix-shell -p git --run "git clone https://$SHARED_REPO.git $SHARED_PATH"
@@ -791,9 +823,8 @@ install(){
             repo $SHARED_REPO $SHARED_PATH
         fi
         mkdir -p $SHARED_MEDIA_PATH
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
-        # repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH
+        media
         symlinks
 
         mkdir -p $USER_HOME/.local/state/nix/profiles
@@ -813,7 +844,9 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
         cd $SHARED_PATH&&git add .
-        echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
+        if $SHOW_PROMPT;then
+            echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
+        fi
         nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
 
@@ -851,8 +884,7 @@ EOF
             packages_apk
         fi
         repo $SHARED_REPO $SHARED_PATH
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
-        # repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
+        media
         symlinks
         dots_backup
         # icons_install
@@ -869,7 +901,7 @@ EOF
     elif [ $OS = "mac" ];then
         packages_b
         repo $SHARED_REPO $SHARED_PATH
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
+        media
         repo $SHARED_REPO_MAC $SHARED_MAC_PATH
 
         read -p "Adjust your configuration now and then hit enter."
