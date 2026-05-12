@@ -111,7 +111,7 @@ done
 # x_PATH - path for shared files such as configurations, scripts etc.
 # x_MEDIA_PATH - path for shared wallpapers (takes a lot of space).
 
-exists(){ command -v $1&>/dev/null }
+exists(){ command -v $1&>/dev/null; }
 
 CURRENT_DIR=$(pwd)
 USER="${SUDO_USER:-$USER}"
@@ -882,13 +882,13 @@ EOF
     elif [ $OS = "arch" ];then
         rm -rf /tmp/paru*
         backup $ENV_FILE
-        elif [ $OS = "arch" ];then
-            packages_p
-        elif [ $OS = "debian" ];then
-            packages_apt
-        elif [ $OS = "alpine" ];then
-            packages_apk
-        fi
+        packages_p
+    elif [ $OS = "debian" ];then
+        packages_apt
+    elif [ $OS = "alpine" ];then
+        packages_apk
+    fi
+    if [ $OS != "mac" ];then
         repo $SHARED_REPO $SHARED_PATH
         media
         symlinks
@@ -904,7 +904,7 @@ EOF
         file "raw.githubusercontent.com/al1h3n/sweeper/refs/heads/main/sweeper.service" "/etc/systemd/system/sweeper.service"
         autolaunch sweeper&&rm /etc/systemd/system/sweeper.service&&cd $CURRENT_DIR&&echo -e "${GREEN}Sweeper was added to autolaunch!${RESET}"
         timedatectl set-local-rtc 1
-    elif [ $OS = "mac" ];then
+    else
         packages_b
         repo $SHARED_REPO $SHARED_PATH
         media
@@ -912,8 +912,6 @@ EOF
 
         read -p "Adjust your configuration now and then hit enter."
         darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
-    else
-        exit 1
     fi
 }
 
