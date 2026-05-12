@@ -852,7 +852,7 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
         cd $SHARED_PATH&&git add .
-        if [ $PROMPT= true ];then
+        if [ $PROMPT = true ];then
             echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
         fi
         nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
