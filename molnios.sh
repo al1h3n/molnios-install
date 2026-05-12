@@ -47,6 +47,7 @@ RESET="\033[0m"
 NIX_INSTALLED=false # Detection of nix.
 NO_NIX=false # Script disable of nix.
 ONLY_HOME=false
+COLLECT_GARBAGE=false
 
 UPDATE=false # Update your system and existing configurations. [u]
 REMOVE=false # Delete all existing MolniOS files.
@@ -73,6 +74,7 @@ Options:
   -np, --no-prompt        Disable prompt for configuration adjustments.
   -h, --home              Run only "home-manager switch".
   -nn, --no-nix           Disable Nix even if it exists; abort on NixOS.
+  -cg, --collect-garbage  Runs command "nix-collect-garbage -d" (only when nix is enabled and installed).
   -nb, --no-backups       Disable symlink backups.
   -u, --update            Update existing installation.
   -r, --remove            Remove existing installation.
@@ -92,12 +94,13 @@ while [[ $# -gt 0 ]];do
     -f|--force) FRESH_INSTALL=true;; # Force fresh install.
     -dv|--download-videos) DOWNLOAD_VIDEO_WALLPAPERS=true;; # Add media-dynamic repo (~2.1GiB!).
     -dp|--download-photos) DOWNLOAD_PHOTO_WALLPAPERS=true;; # Add media-static repo (~711MiB!).
-    -np|--no-prompt) SHOW_PROMPT=false;; # Show prompt to adjust configurations.
+    -np|--no-prompt) PROMPT=false;; # Show prompt to adjust configurations.
     -h|--home) ONLY_HOME=true;; # Run only "home-manager switch".
     -nn|--no-nix) NO_NIX=true;; # Disable nix even if it exists. On nixOS, aborts installation.
     -nb|--no-backups) NO_BACKUPS=true;; # Disables symlink backups.
     -u|--update) UPDATE=true;;
     -r|--remove) REMOVE=true;;
+    -cg|--collect-garbage) COLLECT_GARBAGE=true;;
     -H|--help|-?|--?) usage;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
   esac
@@ -108,9 +111,7 @@ done
 # x_PATH - path for shared files such as configurations, scripts etc.
 # x_MEDIA_PATH - path for shared wallpapers (takes a lot of space).
 
-exists(){
-	command -v $1&>/dev/null
-}
+exists(){ command -v $1&>/dev/null }
 
 CURRENT_DIR=$(pwd)
 USER="${SUDO_USER:-$USER}"
@@ -167,12 +168,12 @@ SHARED_CONFIG=$SHARED_PATH/config
 # 2.1. Checking for root.
 if [ $EUID -ne 0 ];then
     echo -e "${YELLOW}Elevation needed. Restarting with sudo..${RESET}"
-    exec sudo sh $0 $@
+    exec sudo bash $0 $@
 fi
 
 # 2.2. Input functions.
 prompt(){
-    if $SHOW_PROMPT;then
+    if [ $PROMPT == true ];then
         read -p "Do you want to proceed with $1? (y/n) " yn
         case $yn in
             [Yy]* ) echo -e "${BLUE}Proceeding..${RESET}";;
@@ -216,10 +217,10 @@ repo(){ # $1 - link, $2 - path.
 }
 
 media(){
-    if [ DOWNLOAD_PHOTO_WALLPAPERS = true ];then
+    if $DOWNLOAD_PHOTO_WALLPAPERS;then
         repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
     fi
-    if [ DOWNLOAD_VIDEO_WALLPAPERS = true ];then
+    if $DOWNLOAD_VIDEO_WALLPAPERS;then
         repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
     fi
 }
@@ -255,11 +256,11 @@ dislaunch_openrc(){
 }
 
 backup(){
-    for target in $@;do
+    for target in "$@";do
         if [ -L $target ];then
             echo "Skipping symlink: $target"
         elif [ -f $target ];then
-            cp $target "${target}.bak.$(date +%Y%m%d%H%M%S)"
+            cp "$target" "${target}.bak.$(date +%Y%m%d%H%M%S)"
             echo "Backed up file: $target"
         elif [ -d $target ];then
             cp -r $target "${target}.bak.$(date +%Y%m%d%H%M%S)"
@@ -296,7 +297,7 @@ env_add(){ # Adds variable to /etc/environment
     fi
 }
 
-p(){ # Arch + Artix universal downloader.
+p(){ # pacman downloader.
     pacman -Sy --needed --noconfirm --overwrite='/usr/lib/libgcc*' --overwrite='/usr/lib/libstdc*' --overwrite='/usr/share/locale/*/libstdc*' --overwrite='/usr/share/licenses/gcc-libs/*' "$@"
 }
 
@@ -466,14 +467,14 @@ packages_b(){
     brew install git curl
 
     echo Installing nix-darwin if missing.
-    if ! exists darwin-rebuild;then
+    if ! exists darwin-rebuild && [[ $NO_NIX != "true" ]]; then
         nix run nix-darwin -- switch --flake $SHARED_MAC_PATH#main
     fi
 
     echo -e "${GREEN}Packages were installed.${RESET}"
 }
 
-drivers_artix(){
+drivers_pacman(){
     echo -e "${BLUE}Detecting hardware...${RESET}"
 
     # Detect virtualization first.
@@ -540,6 +541,10 @@ drivers_artix(){
     fi
 
     echo -e "${GREEN}Drivers were installed.${RESET}"
+}
+
+packages_apk(){
+    echo "Coming soon."
 }
 
 cursor_name="clay_white"
@@ -682,7 +687,7 @@ dots_clean(){
 }
 
 dots_backup(){
-    if [ $NO_BACKUPS ];then
+    if [ $NO_BACKUPS = true ];then
         echo -e "Backups were disabled."
     else
         dots_clean
@@ -743,7 +748,7 @@ update(){
         repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
         nix-channel --update
         nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
-    elif [ $OS = "arch" ] || [ $OS = "artix" ];then
+    elif [ $OS = "arch" ];then
         if exists yay;then
             s yay --noconfirm
         elif exists paru;then
@@ -799,6 +804,9 @@ fi
 
 if $FRESH_INSTALL;then
     if [ $OS = "nix" ];then
+        if [ $NO_BACKUPS != true ];then
+            backup /etc/nixos
+        fi
         rm -rf /etc/nixos/*
         nixos-generate-config
     else
@@ -829,13 +837,13 @@ install(){
 
         mkdir -p $USER_HOME/.local/state/nix/profiles
         mkdir -p /nix/var/nix/profiles/per-user/al1h3n
-        chown -R al1h3n:users $USER_HOME/.local
-        chown -R al1h3n:users /nix/var/nix/profiles/per-user/al1h3n
+        chown -R $USER:users $USER_HOME/.local
+        chown -R $USER:users /nix/var/nix/profiles/per-user/al1h3n
 
         mkdir -p /$USER_HOME/.config/dconf
         mkdir -p $USER_HOME/Screenshots
-        chown -R al1h3n:users $USER_HOME
-        chmod 700 /home/al1h3n
+        chown -R $USER:users $USER_HOME
+        chmod 700 $USER_HOME
 
         cp -r /etc/nixos/hardware-configuration.nix $SHARED_NIX_PATH
         git -C $SHARED_NIX_PATH add -f hardware-configuration.nix
@@ -844,7 +852,7 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
         cd $SHARED_PATH&&git add .
-        if $SHOW_PROMPT;then
+        if [ $PROMPT= true ];then
             echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
         fi
         nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
@@ -871,11 +879,9 @@ color_scheme_path=$BREEZE_COLORS
 custom_palette=true
 EOF
         nix-store --optimise
-    elif [ $OS = "arch" ] || [ $OS = "artix" ];then
+    elif [ $OS = "arch" ];then
         rm -rf /tmp/paru*
         backup $ENV_FILE
-        if [ $OS = "artix" ];then
-            drivers_artix
         elif [ $OS = "arch" ];then
             packages_p
         elif [ $OS = "debian" ];then
@@ -921,6 +927,10 @@ echo -e "Pay attention that every OS needs to be configured ${RED}after${RESET} 
 
 # 3.1. Default action.
 install
+
+if [[ $NO_NIX != true && $NIX_INSTALLED && $COLLECT_GARBAGE ]];then
+    nix-collect-garbage -d
+fi
 
 echo -e "${FINISH}==========================================${RESET}"
 echo -e "${FINISH}      PRE-INSTALLATION COMPLETE!           ${RESET}"
