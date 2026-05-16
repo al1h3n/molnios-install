@@ -187,7 +187,7 @@ if $FRESH_INSTALL;then
         if [ $NO_BACKUPS != true ];then
             backup /etc/nixos
         fi
-        rm -rf /etc/nixos/*
+        rm -f /etc/nixos/*configuration.nix
         nixos-generate-config
     # else
         # rm -rf ./molnios*
