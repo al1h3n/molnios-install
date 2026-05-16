@@ -26,7 +26,6 @@ case "$0" in
   */*) SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd) ;;
   *)   SCRIPT_DIR=$(pwd) ;;
 esac
-SCRIPT_DIR=$(pwd)
 . "$SCRIPT_DIR/functions/variables.sh"
 . "$SCRIPT_DIR/functions/autostart.sh"
 . "$SCRIPT_DIR/functions/file.sh"
