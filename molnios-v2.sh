@@ -106,7 +106,6 @@ if [ $EUID -ne 0 ];then
 fi
 
 _repo(){
-    echo "DEBUG: FRESH_INSTALL='$FRESH_INSTALL'"
     if [ $FRESH_INSTALL != "true" ];then
         repo "$@"
     else
