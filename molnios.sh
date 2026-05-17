@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # MM    MM              dd           bb                         lll  1  hh      333333
 # MMM  MMM   aa aa      dd   eee     bb      yy   yy      aa aa lll 111 hh         3333 nn nnn
 # MM MM MM  aa aaa  dddddd ee   e    bbbbbb  yy   yy     aa aaa lll  11 hhhhhh    3333  nnn  nn
@@ -19,602 +20,122 @@
 # Currently script suppports following OS:
 # Arch, Artix, Alpine, Debian, nixOS, macOS.
 
-# 1. Variables definition.
+# To do in future: nix for all OS, check symlinking.
 
-# 1.1. Colors.
-GREEN="\e[32m"
-FINISH="\033[38;5;46m" # Special green finish value.
-YELLOW="\e[33m"
-RED="\e[31m"
-BLUE="\x1B[36m"
-RESET="\e[0m"
+case "$0" in
+  */*) SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd) ;;
+  *)   SCRIPT_DIR=$(pwd) ;;
+esac
+. "$SCRIPT_DIR/functions/variables.sh"
+. "$SCRIPT_DIR/functions/autostart.sh"
+. "$SCRIPT_DIR/functions/file.sh"
+. "$SCRIPT_DIR/functions/repo.sh"
+. "$SCRIPT_DIR/functions/main.sh"
+. "$SCRIPT_DIR/functions/molnios-custom.sh"
+. "$SCRIPT_DIR/functions/nix.sh"
+. "$SCRIPT_DIR/functions/repo.sh"
 
-# 1.2. Actions. By default post-install with auto OS definition.
-DEBUG=false # More outputs. [d]
-FRESH_INSTALL=false # Delete and download all repos again [f].
-PRE_INSTALL=false # Pre-install actions. [p]
-UPDATE=false # Update your system and existing configurations. [u]
-REMOVE=false # Delete all existing MolniOS files. [r]
+. "$SCRIPT_DIR/run/gruvbox-theme.sh"
 
-OS="not supported"
-SHARED_PATH="not existing"
+ORIG_ARGS=("$@")
+while [[ $# -gt 0 ]];do
+  case $1 in
+    -d|--debug) DEBUG=true;; # Force fresh install.
+    -f|--force) FRESH_INSTALL=true;; # Force fresh install.
+    -dv|--download-videos) DOWNLOAD_VIDEO_WALLPAPERS=true;; # Add media-dynamic repo (~2.1GiB!).
+    -dp|--download-photos) DOWNLOAD_PHOTO_WALLPAPERS=true;; # Add media-static repo (~711MiB!).
+    -np|--no-prompt) PROMPT=false;; # Show prompt to adjust configurations.
+    -h|--home) ONLY_HOME=true;; # Run only "home-manager switch".
+    -nn|--no-nix) NO_NIX=true;; # Disable nix even if it exists. On nixOS, aborts installation.
+    -ni|--nix-install) NIX_INSTALL=true;; # Enable installation of nix (not nixOS).
+    -nb|--no-backups) NO_BACKUPS=true;; # Disables symlink backups.
+    -u|--update) UPDATE=true;;
+    -r|--remove) REMOVE=true;;
+    -cg|--collect-garbage) COLLECT_GARBAGE=true;;
+    -re|--reboot) REBOOT=true;;
+    -H|--help|-?|--?) usage;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
+  esac
+  shift
+done
 
 # 1.3. Local paths.
 # x_PATH - path for shared files such as configurations, scripts etc.
 # x_MEDIA_PATH - path for shared wallpapers (takes a lot of space).
 
-exists(){
-	command -v $1&>/dev/null
-}
-
-CURRENT_DIR=$(pwd)
-USER="${SUDO_USER:-$USER}"
-
-if [ $(uname) = "Darwin" ];then
-    USER_HOME=$(dscl . -read /Users/$USER NFSHomeDirectory | awk '{print $2}')
-else
-    USER_HOME=$(getent passwd $USER | cut -d: -f6)
-fi
-
-HOME_CONFIG=$USER_HOME/.config
-
-ENV_FILE=/etc/environment
-
-if exists nix-shell;then
-    OS="nix"
+if exists nixos-rebuild;then
+    OS="nixos"
     SHARED_PATH=/etc/nixos/shared
     SHARED_NIX_PATH=/etc/nixos/molnixos
     SHARED_MEDIA_PATH=$USER_HOME/.local/share/molnios/molnios-media/wallpapers
     SHARED_REPO_NIX="gitlab.com/al1h3n/molnixos"
-elif exists pacman || exists apt || exists apk;then
-    if exists pacman;then
-        OS="arch"
-    elif exists apt;then
-        OS="debian"
-    elif exists apk;then
-        OS="alpine"
-    fi
-    SHARED_PATH=/usr/local/bin/molnios
-    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media/wallpapers
 elif [ $(uname) = "Darwin" ];then
     OS="mac"
     SHARED_PATH=$USER_HOME/maconlyos/shared
     SHARED_MAC_PATH=$USER_HOME/maconlyos
-    SHARED_MEDIA_PATH=$SHARED_PATH/molnios/molnios-media
+    SHARED_MEDIA_PATH=$SHARED_PATH/molnios-media
     SHARED_REPO_MAC="gitlab.com/al1h3n/maconlyos"
+elif exists pacman || exists apt || exists apk;then
+    # if [[ exists pacman && !exists yay ]];then
+    #     AUR_INSTALL=true
+    # fi
+    SHARED_PATH=/usr/local/bin/molnios
+    SHARED_MEDIA_PATH=$SHARED_PATH/molnios-media/wallpapers
 else
-    echo -e "${RED}Error: your OS is unsupported.${RESET}"
+    echo -e "${RED}Error: your OS is unsupported. Try install nix first.${RESET}"
     exit 1
 fi
 
-# 1.4. Web paths.
-SHARED_REPO="gitlab.com/al1h3n/molnios-shared"
-SHARED_MEDIA_STATIC_REPO="gitlab.com/al1h3n/molnios-media-static"
-SHARED_MEDIA_DYNAMIC_REPO="codeberg.org/al1h3n/molnios-media-dynamic"
-SHARED_CONFIG=$SHARED_PATH/config
-
-# 2. Preparations and function handling.
-
-# 2.1. Checking for root.
-if [ $EUID -ne 0 ];then
-    echo -e "${YELLOW}Elevation needed. Restarting with sudo..${RESET}"
-    exec sudo sh $0 $@
+if exists nix;then
+    NIX_INSTALLED=true;
+    # if [ $OS != "nixos" ];then
+    #     nix_install_channel nixos.org/channels/nixpkgs-unstable unstable
+    # fi
 fi
 
-# 2.2. Arguments handling.
-while getopts "dfpur" opt; do
-    case $opt in
-        d) DEBUG=true ;;
-        f) FRESH_INSTALL=true ;;
-        p) PRE_INSTALL=true ;;
-        u) UPDATE=true ;;
-        r) REMOVE=true ;;
-        \?) echo -e "${RED}Invalid option: -$OPTARG${RESET}" >&2; usage ;;
-    esac
-done
+if ! exists nix;then
+    if [ $NIX_INSTALL != "false" ];then
+        nix_install
+    fi
+fi
 
-# 2.3. Input functions.
-prompt(){
-    read -p "Do you want to proceed with $1? (y/n) " yn
-    case $yn in
-        [Yy]* ) echo -e "${BLUE}Proceeding..${RESET}";;
-        * ) echo -e "${GREEN}Getting out..${RESET}"; exit;;
-    esac
-    return 0
-}
+# Checking for root.
+if [ $EUID -ne 0 ];then
+    echo -e "${YELLOW}Elevation needed. Restarting with sudo..${RESET}"
+    exec sudo bash $0 "${ORIG_ARGS[@]}"
+fi
 
-# 2.4. Web functions.
-repo(){ # $1 - link, $2 - path.
-    if [ -d "$2/.git" ];then
-        git -C "$2" fetch --quiet
-        LOCAL=$(git -C "$2" rev-parse HEAD)
-        REMOTE=$(git -C "$2" rev-parse "@{u}" 2>/dev/null)
-        if [ -z "$REMOTE" ]; then
-            echo -e "${YELLOW}$2: no upstream tracked, pulling anyway..${RESET}"
-            git -C "$2" pull --rebase --autostash
-        elif [ "$LOCAL" = "$REMOTE" ]; then
-            echo -e "${GREEN}$2: already up to date, skipping.${RESET}"
-        else
-            echo -e "${BLUE}$2: changes found, updating..${RESET}"
-            git -C "$2" pull --rebase --autostash
-        fi
-    elif [ -d "$2" ];then
-        echo -e "${YELLOW}$2 exists but is not a git repo, removing and recloning..${RESET}"
-        rm -rf "$2"
-        git clone "https://$1.git" "$2"
-    elif [ "$1" = "s" ];then
-        local tmpdir=$(mktemp -d)
-        git clone --depth=1 --filter=blob:none --sparse "https://$2.git" "$tmpdir"
-        git -C "$tmpdir" sparse-checkout set "$4"
-        mkdir -p "$3"
-        cp -a "$tmpdir/$4/." "$3/"
-        rm -rf "$tmpdir"
+_repo(){
+    if [ $FRESH_INSTALL != "true" ];then
+        repo "$@"
     else
-        git clone "https://$1.git" "$2"
+        repo --force "$@"
     fi
 }
 
-file(){ # Individual file downloader.
-    curl -L -o $2 "https://$1"
-}
-
-# 2.7. Imperative functions.
-autolaunch(){
-    systemctl daemon-reload
-    systemctl enable --now $1.service
-    systemctl start $1
-}
-
-dislaunch(){
-    systemctl stop $1
-    systemctl disable --now $1
-}
-
-# For Alpine specifically (enabling SSH)
-autolaunch_openrc(){
-    rc-update add $1 default
-    rc-service $1 start
-}
-
-dislaunch_openrc(){
-    rc-service $1 stop
-    rc-update del $1 default
-}
-
-backup(){
-    for target in $@;do
-        if [ -L $target ];then
-            echo "Skipping symlink: $target"
-        elif [ -f $target ];then
-            cp $target "${target}.bak.$(date +%Y%m%d%H%M%S)"
-            echo "Backed up file: $target"
-        elif [ -d $target ];then
-            cp -r $target "${target}.bak.$(date +%Y%m%d%H%M%S)"
-            echo "Backed up folder: $target"
-        else
-            echo -e "${RED}Nothing to back up — not found: $target${RESET}"
-        fi
-    done
-}
-
-restore(){
-    for target in $@;do
-        local latest_backup=$(ls -td "${target}.bak."* 2>/dev/null | head -1)
-        if [ -z $latest_backup ];then
-            echo -e "${RED}No backup found for $target!${RESET}"
-        elif [ -f $latest_backup ];then
-            cp $latest_backup $target
-            echo -e "${GREEN}Restored file: $target from $latest_backup${RESET}"
-        elif [ -d $latest_backup ];then
-            cp -r $latest_backup $target
-            echo -e "${GREEN}Restored folder: $target from $latest_backup${RESET}"
-        else
-            echo -e "${RED}Backup exists but is unrecognised type: $latest_backup${RESET}"
-        fi
-    done
-}
-
-env_add(){ # Adds variable to /etc/environment
-    if ! grep -q "^$1=" $ENV_FILE; then
-        echo "$1" | sudo tee -a "$ENV_FILE" > /dev/null
-        echo -e "${GREEN}$1 added to $ENV_FILE.${RESET}"
-    else
-        echo "$1 already exists in $ENV_FILE, skipping addition."
-    fi
-}
-
-p(){ # Arch + Artix universal downloader.
-    pacman -Sy --needed --noconfirm --overwrite='/usr/lib/libgcc*' --overwrite='/usr/lib/libstdc*' --overwrite='/usr/share/locale/*/libstdc*' --overwrite='/usr/share/licenses/gcc-libs/*' $1
-}
-
-ap(){
-    apk add --no-cache $1
-}
-
-de(){
-    apt install -y $1
-}
-
-packages_p(){
-    prompt "installing packages via pacman"
-
-    sed -i '/^#\[multilib\]/,/^#Include = \/etc\/pacman.d\/mirrorlist/{s/^#//}' /etc/pacman.conf
-    echo Main packages + fonts + important programs.
-    p base-devel openssh git fastfetch countryfetch ttf-jetbrains-mono-nerd mpv btop font-manager neovim
-    echo GUI applications.
-    p firefox qbittorrent obs-studio thunar gvfs ffmpegthumbnailer obsidian cpu-x songrec
-    echo Developing.
-    p python-pipx breeze virt-manager
-    echo RGB + accessories.
-    p openrgb piper
-    echo Configurations.
-    p zsh zsh-autosuggestions zsh-syntax-highlighting eza yazi fzf zoxide
-    echo OCR
-    p tesseract tesseract-data-eng tesseract-data-rus tesseract-data-chi_sim slurp wl-clipboard
-    echo Backend + hyprland utilities.
-    p brightnessctl blueman wtype
-    echo Hyprland.
-    p hyprland hyprlock rofi rofi-emoji rofi-calc swww cava
-    echo Screenshots.
-    p wl-clip-persist grim slurp
-    echo Clipboard.
-    p cliphist
-    echo
-    echo Permissions.
-    p hyprpolkitagent # polkit-gnome
-    echo Tray.
-    p waybar swaync # quickshell, dunst
-    echo Man.
-    p tldr
-    tldr --update
-
-    echo Installing paru.
-    local type="paru-bin"
-    repo aur.archlinux.org/$type /tmp/$type&&cd /tmp/$type&&makepkg -si&&rm -rf /tmp/$type&&cd $CURRENT_DIR
-
-    echo Use hyprland uwsm if you have systemd.
-    paru -Sy --needed --noconfirm temurin-bin-8 temurin-bin-21 temurin-bin-25
-    paru -Sy --needed --noconfirm yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin pay-respects-bin
-    # openoffice-bin
-
-    echo "JRE 8 for 1.16.5 and older, 21 for 1.17-1.21.11, 25 for 26.x+. Install JRE instead of JDK (wastes less space). Adoptium is better in any case."
-    pacman -Sy steam prismlauncher # jre21-openjdk
-    xdg-settings set default-web-browser firefox.desktop
-
-    # MPV theme.
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/tomasklaen/uosc/HEAD/installers/unix.sh)"
-
-    # ZSH shift select
-    repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
-    echo -e "${GREEN}Packages were installed.${RESET}"
-}
-
-packages_apt(){
-    prompt "installing packages via apt"
-
-    apt update && apt upgrade -y
-
-    echo Main packages + important programs.
-    de build-essential openssh-server git curl wget fastfetch \
-        fonts-jetbrains-mono mpv btop neovim
-
-    echo GUI applications.
-    de firefox-esr thunar gvfs ffmpegthumbnailer
-
-    echo Configurations.
-    de zsh zsh-autosuggestions zsh-syntax-highlighting fzf eza zoxide yazi
-
-    echo Backend utilities.
-    de brightnessctl blueman wtype dbus-x11
-
-    echo Wayland + compositor.
-    de hyprland xwayland wayland-protocols rofi-wayland swww
-
-    echo Screenshots + clipboard.
-    de grim slurp wl-clipboard cliphist
-
-    echo Tray + notifications.
-    de waybar
-
-    echo OCR.
-    de tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-chi-sim
-
-    echo Developing.
-    de python3 pipx
-
-    echo Man.
-    de tldr
-    tldr --update
-
-    # MPV theme.
-    sh -c "$(curl -fsSL https://raw.githubusercontent.com/tomasklaen/uosc/HEAD/installers/unix.sh)"
-
-    # ZSH shift select
-    repo github.com/jirutka/zsh-shift-select $USER_HOME/.local/share/zsh/plugins/zsh-shift-select
-
-    systemctl enable --now ssh
-    xdg-settings set default-web-browser firefox-esr.desktop
-
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # cargo installation
-    repo github.com/Linus789/wl-clip-persist /tmp/wl-clip-persist&&cd /tmp/wl-clip-persist&&cargo build --release&&cp target/release/wl-clip-persist /usr/local/bin&&rm -rf /tmp/wl-clip-persist&&cd $CURRENT_DIR
-
-    echo -e "${GREEN}Packages were installed.${RESET}"
-}
-
-packages_b(){
-    prompt "installing packages via homebrew"
-
-    # Install brew if missing.
-    if ! exists brew; then
-        echo -e "${YELLOW}Homebrew not found, installing..${RESET}"
-        sh -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    fi
-
-    brew install git curl
-
-    echo Installing nix-darwin if missing.
-    if ! exists darwin-rebuild;then
-        nix run nix-darwin -- switch --flake $SHARED_MAC_PATH#main
-    fi
-
-    echo -e "${GREEN}Packages were installed.${RESET}"
-}
-
-drivers_artix(){
-    echo -e "${BLUE}Detecting hardware...${RESET}"
-
-    # Detect virtualization first.
-    if exists vboxservice || lspci 2>/dev/null | grep -qi "VirtualBox"; then
-        echo -e "${GREEN}VirtualBox detected.${RESET}"
-        p virtualbox-guest-utils virtualbox-guest-modules-artix
-        return 0
-    fi
-
-    if exists vmware-checkvm || lspci 2>/dev/null | grep -qi "VMware"; then
-        echo -e "${GREEN}VMware detected.${RESET}"
-        p open-vm-tools xf86-video-vmware
-        autolaunch vmtoolsd
-        return 0
-    fi
-
-    # Detect GPU via lspci.
-    local gpu=$(lspci 2>/dev/null | grep -iE "VGA|3D|Display")
-    echo -e "GPU detected: ${BLUE}$gpu${RESET}"
-
-    if echo "$gpu" | grep -qi "nvidia"; then
-        echo -e "${GREEN}NVIDIA GPU detected.${RESET}"
-        prompt "installing NVIDIA drivers"
-        p nvidia nvidia-utils nvidia-settings lib32-nvidia-utils
-        # For older GPUs uncomment one of these instead:
-        # p nvidia-470xx-dkms nvidia-470xx-utils  # GTX 900 and older
-        # p nvidia-390xx-dkms nvidia-390xx-utils  # Even older
-        p cuda # Optional: CUDA support
-
-    elif echo "$gpu" | grep -qi "amd\|radeon\|advanced micro"; then
-        echo -e "${GREEN}AMD GPU detected.${RESET}"
-        prompt "installing AMD drivers"
-        p mesa lib32-mesa xf86-video-amdgpu vulkan-radeon lib32-vulkan-radeon
-        p libva-mesa-driver lib32-libva-mesa-driver mesa-vdpau lib32-mesa-vdpau
-        # Optional: ROCm for compute workloads
-        # p rocm-opencl-runtime
-
-    elif echo "$gpu" | grep -qi "intel arc\|intel.*xe"; then
-        echo -e "${GREEN}Intel Arc GPU detected.${RESET}"
-        prompt "installing Intel Arc drivers"
-        p mesa lib32-mesa vulkan-intel lib32-vulkan-intel
-        p intel-media-driver intel-compute-runtime level-zero-loader
-        # Arc may need newer kernel - check if zen is new enough
-        echo -e "${YELLOW}Note: Intel Arc works best on kernel 6.2+. Verify your kernel version.${RESET}"
-
-    elif echo "$gpu" | grep -qi "intel"; then
-        echo -e "${GREEN}Intel iGPU detected.${RESET}"
-        prompt "installing Intel iGPU drivers"
-        p mesa lib32-mesa vulkan-intel lib32-vulkan-intel
-        p intel-media-driver libva-intel-driver # intel-media-driver for Gen8+, libva-intel-driver for older
-
-    else
-        echo -e "${YELLOW}GPU not recognized: $gpu${RESET}"
-        echo -e "${YELLOW}Installing generic mesa drivers as fallback.${RESET}"
-        p mesa lib32-mesa xf86-video-vesa
-    fi
-
-    # Check for hybrid GPU (e.g. laptop with Intel iGPU + Nvidia dGPU).
-    local gpu_count=$(lspci 2>/dev/null | grep -icE "VGA|3D|Display")
-    if [ "$gpu_count" -gt 1 ]; then
-        echo -e "${YELLOW}Hybrid GPU setup detected ($gpu_count GPUs). Installing optimus manager.${RESET}"
-        paru -Sy --needed --noconfirm optimus-manager optimus-manager-qt
-        autolaunch optimus-manager
-    fi
-
-    echo -e "${GREEN}Drivers were installed.${RESET}"
-}
-
-cursor(){
-    local cursor_name="clay_white"
-    mkdir -p $USER_HOME/.local/share/icons/molnios/$cursor_name
-    cp -r $SHARED_PATH/cursors/* $USER_HOME/.local/share/icons/molnios
-    echo -e "${GREEN}Cursor was installed.${RESET}"
-}
-
-cursor_remove(){
-    rm -rf $USER_HOME/.local/share/icons/molnios
-    rm -rf /usr/share/icons/molnios
-    echo -e "${GREEN}Cursor was removed.${RESET}"
-}
-
-icons_install(){
-    prompt "installing icon themes"
-
-    # We10X
-    local tmpdir=$(mktemp -d)
-    git clone --depth=1 https://github.com/yeyushengfan258/We10X-icon-theme.git $tmpdir/we10x
-    sh $tmpdir/we10x/install.sh -d /usr/share/icons -t black
-
-    # MacTahoe
-    git clone --depth=1 https://github.com/vinceliuice/MacTahoe-icon-theme.git $tmpdir/mactahoe
-    sh $tmpdir/mactahoe/install.sh -d /usr/share/icons -t default
-
-    rm -rf $tmpdir
-
-    # Set default icon theme for Qt
-    mkdir -p /etc/xdg/qt5ct /etc/xdg/qt6ct
-    for f in /etc/xdg/qt5ct/qt5ct.conf /etc/xdg/qt6ct/qt6ct.conf;do
-        cat > $f <<EOF
-[Appearance]
-icon_theme=MacTahoe
-style=Breeze
-color_scheme_path=/usr/share/color-schemes/BreezeDark.colors
-EOF
-    done
-    echo -e "${GREEN}Icons were installed.${RESET}"
-}
-
-icons_uninstall(){
-    rm -rf /usr/share/icons/We10X-black-dark
-    rm -rf /usr/share/icons/MacTahoe
-    rm -rf /etc/xdg/qt5ct/qt5ct.conf
-    rm -rf /etc/xdg/qt6ct/qt6ct.conf
-    echo -e "${GREEN}Icons were removed.${RESET}"
-}
-
-symlinks(){
-    mkdir -p /usr/local/bin
-    cp $SHARED_PATH/scripts/path.sh /usr/local/bin/path.sh
-    cp $(readlink -f $0) /usr/local/bin/molnios.sh
-    chmod a+x $SHARED_PATH/scripts/path.sh
-    chmod a+x /usr/local/bin/molnios.sh
-
-    mkdir -p $USER_HOME/.local/share/molnios
-    # ln -sfn $SHARED_MEDIA_PATH $USER_HOME/.local/share/molnios/molnios-media/wallpapers
-    ln -sfn $SHARED_PATH/scripts $USER_HOME/.local/share/molnios/scripts
-    ln -sfn $SHARED_PATH/config $USER_HOME/.local/share/molnios/config
-    ln -sfn $SHARED_PATH/images $USER_HOME/.local/share/molnios/images
-    ln -sfn $SHARED_PATH/sfx $USER_HOME/.local/share/molnios/sfx
-    chown -hR $USER: $USER_HOME/.local/share/molnios
-
-    if [ $OS = "nix" ];then
-        sed -i "s|\$musicplayer = spotify-launcher|\$musicplayer = spotify|g" $SHARED_CONFIG/hyprconfig
-    fi
-
-    echo -e "${GREEN}Shared repo, path.sh and molnios.sh were symlinked to /usr/local/bin${RESET}"
-}
-
-symlinks_remove(){
-    rm -rf $USER_HOME/.local/share/molnios/molnios-media
-    rm -rf $USER_HOME/.local/share/molnios/scripts
-    rm -rf $USER_HOME/.local/share/molnios/config
-    rm -rf $USER_HOME/.local/share/molnios/images
-    rm -rf $USER_HOME/.local/share/molnios/sfx
-    rm -rf /usr/local/bin/path.sh
-    rm -rf /usr/local/bin/molnios.sh
-}
-
-dots_restore(){
-    restore /etc/hosts
-    restore $HOME_CONFIG/fastfetch/config.jsonc
-    restore $HOME_CONFIG/feh/buttons
-    restore $HOME_CONFIG/hypr/hyprland.conf
-    restore $HOME_CONFIG/kitty/kitty.conf
-    restore $HOME_CONFIG/kitty/kittystyle
-    restore $HOME_CONFIG/waypaper/config.ini
-    restore /etc/ly/config.ini
-    restore $HOME_CONFIG/qBittorrent/qBittorrent.conf
-    symlinks_remove
-}
-
-dots_clean(){
-    rm -f /etc/hosts
-    restore /etc/hosts
-    rm -f $HOME_CONFIG/fastfetch/config.jsonc
-    restore $HOME_CONFIG/fastfetch/config.jsonc
-    rm -f $HOME_CONFIG/feh/buttons
-    restore $HOME_CONFIG/feh/buttons
-    rm -f $HOME_CONFIG/hypr/hyprland.conf
-    restore $HOME_CONFIG/hypr/hyprland.conf
-    rm -f $HOME_CONFIG/kitty/kitty.conf
-    restore $HOME_CONFIG/kitty/kitty.conf
-    rm -f $HOME_CONFIG/kitty/kittystyle
-    restore $HOME_CONFIG/kitty/kittystyle
-    rm -f $HOME_CONFIG/waybar/config
-    restore $HOME_CONFIG/waybar/config
-    rm -f $HOME_CONFIG/waypaper/config.ini
-    restore $HOME_CONFIG/waypaper/config.ini
-    rm -f /etc/ly/config.ini
-    restore /etc/ly/config.ini
-    rm -f $HOME_CONFIG/qBittorrent/qBittorrent.conf
-    restore $HOME_CONFIG/qBittorrent/qBittorrent.conf
-    rm -rf $USER_HOME/.local/share/molnios
-    rm -rf $USER_HOME/Screenshots
-    echo -e "${GREEN}Existing symlinks were cleaned.${RESET}"
-}
-
-dots_backup(){
-    dots_clean
-
-    backup /etc/hosts
-    ln -sfn $SHARED_CONFIG/config/hosts /etc/hosts
-
-    mkdir -p $HOME_CONFIG/fastfetch
-    backup $HOME_CONFIG/fastfetch/config.jsonc
-    ln -sfn $SHARED_CONFIG/fastfetch.jsonc $HOME_CONFIG/fastfetch/config.jsonc
-
-    mkdir -p $HOME_CONFIG/feh
-    backup $HOME_CONFIG/feh/buttons
-    ln -sfn $SHARED_CONFIG/feh $HOME_CONFIG/feh/buttons
-
-    mkdir -p $HOME_CONFIG/hypr
-    backup $HOME_CONFIG/hypr/hyprland.conf
-    ln -sfn $SHARED_CONFIG/hyprconfig $HOME_CONFIG/hypr/hyprland.conf
-    ln -sfn $SHARED_CONFIG/custom $HOME_CONFIG/hypr/custom
-
-    mkdir -p $HOME_CONFIG/kitty
-    backup $HOME_CONFIG/kitty/kitty.conf
-    ln -sfn $SHARED_CONFIG/kitty $HOME_CONFIG/kitty/kitty.conf
-    backup $HOME_CONFIG/kitty/kittystyle
-    ln -sfn $SHARED_CONFIG/kittystyle $HOME_CONFIG/kitty/kittystyle
-
-    mkdir -p /etc/ly
-    backup /etc/ly/config.ini
-    ln -sfn $SHARED_CONFIG/ly /etc/ly/config.ini
-
-    mkdir -p $HOME_CONFIG/waypaper
-    backup $HOME_CONFIG/waypaper/config.ini
-    cp $SHARED_CONFIG/waypaper $HOME_CONFIG/waypaper/config.ini
-    sed -i "s|$USER_HOME/.local/share/molnios/molnios-media/wallpapers|$SHARED_MEDIA_PATH|g" \
-        $HOME_CONFIG/waypaper/config.ini
-
-    mkdir -p $HOME_CONFIG/qBittorrent/themes
-    backup $HOME_CONFIG/qBittorrent/qBittorrent.conf
-    ln -sfn $SHARED_CONFIG/qbittorrent $HOME_CONFIG/qBittorrent/qBittorrent.conf
-    mkdir -p $HOME_CONFIG/qBittorrent/themes
-    for theme in $SHARED_CONFIG/qbit-themes/*.qbtheme; do
-        ln -sfn $theme $HOME_CONFIG/qBittorrent/themes/$(basename $theme)
-    done
-
-    local kitty_conf=$HOME_CONFIG/kitty/kitty.conf
-    local line='include ${L_PATH}/config/kitty'
-    if ! grep -qF "$line" $kitty_conf; then
-        echo "include ${L_PATH}/config/kitty" >> $kitty_conf
-    else
-        echo "Kitty include already exists, skipping."
-    fi
-}
-
-# 2.6. Main functions.
+# Main functions.
 update(){
-    repo $SHARED_REPO $SHARED_PATH
+    _repo $SHARED_REPO $SHARED_PATH
     if [ ! $OS = "mac" ];then
         symlinks
     fi
+    if [[ $OS != "nix" && $NO_NIX != true ]];then
+        nix flake update
+        home-manager switch --impure --flake $SHARED_NIX_PATH#main
+    fi
     if [ $OS = "nix" ];then
-        repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
+        _repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
         nix-channel --update
-        nixos-rebuild switch --impure --upgrade
-    elif [ $OS = "arch" ] || [ $OS = "artix" ];then
-        paru --noconfirm
+        nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
+    elif [ $OS = "arch" ];then
+        if exists yay;then
+            s yay --noconfirm
+        elif exists paru;then
+            s paru --noconfirm
+        fi
         tldr --update
     elif [ $OS = "mac" ];then
-        repo $SHARED_REPO_MAC $SHARED_MAC_PATH
+        _repo $SHARED_REPO_MAC $SHARED_MAC_PATH
         nix flake update --flake $SHARED_MAC_PATH
         darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
         brew upgrade
@@ -625,21 +146,18 @@ update(){
 }
 
 remove(){
-    rm -rf /.config/waybar/*
     if [ $OS = "nix" ];then
         prompt "removing files - CAN BREAK YOUR SYSTEM"
-        rm -rf $SHARED_PATH/*
-        rm -rf $SHARED_NIX_PATH/*
-    elif [ $OS = "arch" ] || [ $OS = "artix" ];then
-        prompt "removing files"
-        dislaunch sweeper
         rm -rf $SHARED_PATH
+        rm -rf $SHARED_NIX_PATH
     elif [ $OS = "mac" ];then
         prompt "removing MaconlyOS files"
         rm -rf $SHARED_PATH
         rm -rf $SHARED_MAC_PATH
     else
-        exit 1
+        prompt "removing files"
+        dislaunch sweeper
+        rm -rf $SHARED_PATH
     fi
     exit 0
 }
@@ -653,7 +171,7 @@ if $DEBUG;then
     if ping -q -c 1 -W 1 8.8.8.8 >/dev/null;then
         echo -e "Internet: ${GREEN}working${RESET}."
     else
-        echo -e Fx"Internet: ${RED}not working${RESET}."
+        echo -e "Internet: ${RED}not working${RESET}."
     fi
     if exists git;then
         echo -e "Git: ${FINISH}existing.${RESET}"
@@ -665,18 +183,14 @@ fi
 
 if $FRESH_INSTALL;then
     if [ $OS = "nix" ];then
-        rm -rf /etc/nixos/*
+        if [ $NO_BACKUPS != true ];then
+            backup /etc/nixos
+        fi
+        rm -f /etc/nixos/*configuration.nix
         nixos-generate-config
+    # else
+        # rm -rf ./molnios*
     fi
-fi
-
-if $PRE_INSTALL;then
-    rm -rf /.config/waybar/*
-    if [ $OS = "nix" ];then
-        nixos-generate-config -root /mnt
-        nixos-install
-    fi
-    exit 0
 fi
 
 if $UPDATE;then
@@ -688,32 +202,23 @@ if $REMOVE;then
 fi
 
 install(){
-    symlinks_remove
-    if [ $OS = "nix" ];then
-        if ! exists git;then
-            nix-shell -p git --run "git clone https://$SHARED_REPO.git $SHARED_PATH"
-        else
-            repo $SHARED_REPO $SHARED_PATH
-        fi
+    git config --global http.followRedirects true
+    if [ $OS = "nixos" ];then
+        _repo $SHARED_REPO $SHARED_PATH
         mkdir -p $SHARED_MEDIA_PATH
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
-        #repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
-        repo $SHARED_REPO_NIX $SHARED_NIX_PATH
+        _repo $SHARED_REPO_NIX $SHARED_NIX_PATH
+        media
         symlinks
-
-        git clone -b fix/v0.14.0 https://github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
-        mkdir -p $USER_HOME/.config/waybar
-        cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
         mkdir -p $USER_HOME/.local/state/nix/profiles
         mkdir -p /nix/var/nix/profiles/per-user/al1h3n
-        chown -R al1h3n:users $USER_HOME/.local
-        chown -R al1h3n:users /nix/var/nix/profiles/per-user/al1h3n
+        chown -R $USER:users $USER_HOME/.local
+        chown -R $USER:users /nix/var/nix/profiles/per-user/al1h3n
 
         mkdir -p /$USER_HOME/.config/dconf
         mkdir -p $USER_HOME/Screenshots
-        chown -R al1h3n:users $USER_HOME
-        chmod 700 /home/al1h3n
+        chown -R $USER:users $USER_HOME
+        chmod 700 $USER_HOME
 
         cp -r /etc/nixos/hardware-configuration.nix $SHARED_NIX_PATH
         git -C $SHARED_NIX_PATH add -f hardware-configuration.nix
@@ -721,55 +226,71 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged hardware-configuration.nix
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
-        cd $SHARED_PATH&&git add .
-        read -p "Adjust your modules configuration now and then hit enter."
-        nixos-rebuild switch --impure --upgrade --flake $SHARED_NIX_PATH#main
-        # ! Dirty git tree - isn't a problem. It happens when you didn't commit changes.
+        rm ~/.config/gtk-3.0/settings.ini.backup
 
-        # nix --extra-experimental-features 'nix-command flakes' flake update --flake $SHARED_NIX_PATH
-        # git -C $SHARED_NIX_PATH add flake.lock
-        # git -C $SHARED_NIX_PATH -c user.email="molnios@local" -c user.name="MolniOS" commit -m "update flake.lock"
-        # git -C $SHARED_NIX_PATH update-index --assume-unchanged flake.lock
-    elif [ $OS = "arch" ] || [ $OS = "artix" ];then
-        backup $ENV_FILE
-        if [ $OS = "artix" ];then
-            drivers_artix
-        elif [ $OS = "arch" ];then
-            packages_p
-        elif [ $OS = "debian" ];then
-            packages_apt
-        elif [ $OS = "alpine" ];then
-            packages_apk
+        cd $SHARED_PATH&&git add .
+        if [ $PROMPT = true ];then
+            echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
         fi
-        repo $SHARED_REPO $SHARED_PATH
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
-        #repo $SHARED_MEDIA_DYNAMIC_REPO $SHARED_MEDIA_PATH
+
+        nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
+        # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
+
+        BREEZE_COLORS=$(nix eval --raw nixpkgs#kdePackages.breeze)/share/color-schemes/BreezeDark.colors
+        mkdir -p ~/.config/qt6ct ~/.config/qt5ct
+        rm ~/.config/qt6ct/qt6ct.conf
+        rm ~/.config/qt5ct/qt5ct.conf
+
+        cat > ~/.config/qt6ct/qt6ct.conf << EOF
+[Appearance]
+icon_theme=MacTahoe
+style=Breeze-Dark
+color_scheme_path=$BREEZE_COLORS
+custom_palette=true
+EOF
+
+        cat > ~/.config/qt5ct/qt5ct.conf << EOF
+[Appearance]
+icon_theme=MacTahoe
+style=Breeze-Dark
+color_scheme_path=$BREEZE_COLORS
+custom_palette=true
+EOF
+    nix-store --optimise
+    return 0
+    elif [ $OS = "arch" ];then
+        rm -rf /tmp/paru*
+        backup $ENV_FILE
+        packages_p
+    elif [ $OS = "debian" ];then
+        packages_apt
+    elif [ $OS = "alpine" ];then
+        packages_apk
+    fi
+    if [ $OS != "mac" ];then
+        _repo $SHARED_REPO $SHARED_PATH
+        media
         symlinks
         dots_backup
-        icons_install
+        # icons_install
+        font_install
         cursor
-
-        git clone -b fix/v0.14.0 https://github.com/sejjy/mechabar.git $SHARED_CONFIG/mechabar
-        mkdir -p $USER_HOME/.config/waybar
-        cp -r $SHARED_CONFIG/mechabar/* $USER_HOME/.config/waybar
 
         env_add "SHARED_PATH=$SHARED_PATH"
         env_add "SHARED_MEDIA_PATH=$SHARED_MEDIA_PATH"
         env_add "L_PATH=~/.local/share/molnios"
-        file "raw.githubusercontent.com/Alihan1ai9595/sweeper/unobfusticated/sweeper.sh" "/usr/local/bin/sweeper/sweeper.sh"
-        file "raw.githubusercontent.com/Alihan1ai9595/sweeper/main/sweeper.service" "/etc/systemd/system/sweeper.service"
+        file "raw.githubusercontent.com/al1h3n/sweeper/refs/heads/main/sweeper.sh" "/usr/local/bin/sweeper/sweeper.sh"
+        file "raw.githubusercontent.com/al1h3n/sweeper/refs/heads/main/sweeper.service" "/etc/systemd/system/sweeper.service"
         autolaunch sweeper&&rm /etc/systemd/system/sweeper.service&&cd $CURRENT_DIR&&echo -e "${GREEN}Sweeper was added to autolaunch!${RESET}"
         timedatectl set-local-rtc 1
-    elif [ $OS = "mac" ];then
+    else
         packages_b
-        repo $SHARED_REPO $SHARED_PATH
-        repo $SHARED_MEDIA_STATIC_REPO $SHARED_MEDIA_PATH
-        repo $SHARED_REPO_MAC $SHARED_MAC_PATH
+        _repo $SHARED_REPO $SHARED_PATH
+        media
+        _repo $SHARED_REPO_MAC $SHARED_MAC_PATH
 
         read -p "Adjust your configuration now and then hit enter."
         darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
-    else
-        exit 1
     fi
 }
 
@@ -784,7 +305,17 @@ echo -e "Pay attention that every OS needs to be configured ${RED}after${RESET} 
 # 3.1. Default action.
 install
 
+if [[ $NO_NIX != true && $NIX_INSTALLED && $COLLECT_GARBAGE ]];then
+    nix-collect-garbage -d
+fi
+
 echo -e "${FINISH}==========================================${RESET}"
 echo -e "${FINISH}      PRE-INSTALLATION COMPLETE!           ${RESET}"
 echo -e "${FINISH}==========================================${RESET}"
 echo -e "               ...now configure what you need..."
+
+if [ $REBOOT != false ];then
+    reboot
+fi
+
+exit 0
