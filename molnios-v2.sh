@@ -226,10 +226,13 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged hardware-configuration.nix
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
+        rm ~/.config/gtk-3.0/settings.ini.backup
+
         cd $SHARED_PATH&&git add .
         if [ $PROMPT = true ];then
             echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
         fi
+
         nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
 
