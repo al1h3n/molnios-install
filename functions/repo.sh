@@ -169,7 +169,7 @@ ${_BLD}Options:${_RST}
         fi
 
         _info "Cloning…"
-        if git clone "$CLONE_URL" "$DEST"; then
+        if git clone --depth 1 "$CLONE_URL" "$DEST"; then
             # Remove the .git directory to keep things clean (as per spec)
             rm -rf "$DEST/.git"
             _ok "Done → '${DEST}' (no .git)"
