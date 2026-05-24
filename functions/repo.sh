@@ -33,18 +33,11 @@ repo() {
     # ------------------------------------------------------------------ #
     #  Colour helpers                                                      #
     # ------------------------------------------------------------------ #
-    local _RED='\033[0;31m'
-    local _GRN='\033[0;32m'
-    local _YLW='\033[0;33m'
-    local _CYN='\033[0;36m'
-    local _BLD='\033[1m'
-    local _RST='\033[0m'
-
-    _info()    { echo -e "${_CYN}[repo]${_RST} $*"; }
-    _ok()      { echo -e "${_GRN}[repo]${_RST} $*"; }
-    _warn()    { echo -e "${_YLW}[repo]${_RST} $*"; }
-    _err()     { echo -e "${_RED}[repo]${_RST} $*" >&2; }
-    _section() { echo -e "${_BLD}${_CYN}── $* ──${_RST}"; }
+    _info()    { echo -e "${BLUE}[repo]${RESET} $*"; }
+    _ok()      { echo -e "${GREEN}[repo]${RESET} $*"; }
+    _warn()    { echo -e "${YELLOW}[repo]${RESET} $*"; }
+    _err()     { echo -e "${RED}[repo]${RESET} $*" >&2; }
+    _section() { echo -e "${WHITE}── $* ──${RESET}"; }
 
     # ------------------------------------------------------------------ #
     #  Help                                                               #

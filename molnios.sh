@@ -17,6 +17,9 @@
 # 3. Makes requied actions (backing directories/files or updates existing git repos if needed)
 # ==============================================================================
 
+# To make gruvbox theme work use this command: sudo -E bash molnios.sh
+# Custom theme syntax only works in bash.
+
 # Currently script suppports following OS:
 # Arch, Artix, Alpine, Debian, nixOS, macOS.
 
@@ -304,7 +307,7 @@ echo -e "Pay attention that every OS needs to be configured ${RED}after${RESET} 
 # 3.1. Default action.
 install
 
-if [[ $NO_NIX != true && $NIX_INSTALLED && $COLLECT_GARBAGE ]];then
+if [[ $NO_NIX != true && $NIX_INSTALLED != false && $COLLECT_GARBAGE != false ]];then
     nix-collect-garbage -d
 fi
 
