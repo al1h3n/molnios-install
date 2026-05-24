@@ -33,7 +33,6 @@ esac
 . "$SCRIPT_DIR/functions/main.sh"
 . "$SCRIPT_DIR/functions/molnios-custom.sh"
 . "$SCRIPT_DIR/functions/nix.sh"
-. "$SCRIPT_DIR/functions/repo.sh"
 
 . "$SCRIPT_DIR/run/gruvbox-theme.sh"
 
