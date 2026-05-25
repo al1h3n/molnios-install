@@ -162,7 +162,7 @@ ${_BLD}Options:${_RST}
         fi
 
         _info "Cloning…"
-        if git clone --depth 1 "$CLONE_URL" "$DEST"; then
+        if git clone --depth 1 --filter=blob:none "$CLONE_URL" "$DEST"; then
             # Remove the .git directory to keep things clean (as per spec)
             rm -rf "$DEST/.git"
             _ok "Done → '${DEST}' (no .git)"
@@ -233,6 +233,7 @@ ${_BLD}Options:${_RST}
         --filter=blob:none \
         --no-checkout \
         --depth=1 \
+        --filter=blob:none \
         "$CLONE_URL" "$TMP_DIR" 2>&1 | sed "s/^/  /"
 
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
