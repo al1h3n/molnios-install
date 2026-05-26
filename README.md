@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-ff5f5f.svg?style=for-the-badge&logo=ko-fi" alt="Buy me some noodles!" />
 </a>
 
-**MolniOS** is my personal, highly customized dotfiles configuration for **Hyprland**. 
+**MolniOS** is my personal, highly customized dotfiles configuration for **Hyprland**.
 
 This project represents a complete overhaul of the Wayland experience, designed for aesthetics, speed, and workflow efficiency. It is the result of countless hours of tweaking, styling, and scripting to achieve a perfect harmony between form and function.
 
@@ -28,9 +28,9 @@ This project represents a complete overhaul of the Wayland experience, designed 
 ## ✅ Installation
 Just type any of these commands:
 ```
-git clone https://github.com/al1h3n/molnios-install
-git clone https://gitlab.com/al1h3n/molnios-install
-git clone https://codeberg.org/al1h3n/molnios-install
+git clone --depth=1 --filter=blob:none https://github.com/al1h3n/molnios-install
+git clone --depth=1 --filter=blob:none https://gitlab.com/al1h3n/molnios-install
+git clone --depth=1 --filter=blob:none https://codeberg.org/al1h3n/molnios-install
 ```
 > ## PLEASE, DON'T USE THIS WITHOUT -f FLAG WHEN INSTALLING (or it won't properly work, known bug)
 

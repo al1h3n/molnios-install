@@ -232,8 +232,7 @@ ${_BLD}Options:${_RST}
     git clone \
         --filter=blob:none \
         --no-checkout \
-        --depth=1 \
-        --filter=blob:none \
+        --depth 1 \
         "$CLONE_URL" "$TMP_DIR" 2>&1 | sed "s/^/  /"
 
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
