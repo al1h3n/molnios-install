@@ -137,7 +137,8 @@ ${_BLD}Options:${_RST}
             _info "Existing repo detected at '${DEST}'."
 
             local LOCAL_SHA REMOTE_SHA
-            LOCAL_SHA="$(git -C "$DEST" rev-parse HEAD 2>/dev/null)"
+            LOCAL_SHA=""
+            [[ -f "$DEST/.repo_commit" ]] && LOCAL_SHA="$(cat "$DEST/.repo_commit")"
             REMOTE_SHA="$(_remote_head "$CLONE_URL")"
 
             if [[ -z "$REMOTE_SHA" ]]; then
@@ -163,9 +164,11 @@ ${_BLD}Options:${_RST}
 
         _info "Cloning…"
         if git clone --depth 1 --filter=blob:none "$CLONE_URL" "$DEST"; then
-            # Remove the .git directory to keep things clean (as per spec)
+            local FINAL_SHA
+            FINAL_SHA="$(git -C "$DEST" rev-parse HEAD 2>/dev/null)"
             rm -rf "$DEST/.git"
-            _ok "Done → '${DEST}' (no .git)"
+            echo "$FINAL_SHA" > "$DEST/.repo_commit"
+            _ok "Done → '${DEST}' (no .git, commit cached: ${FINAL_SHA:0:8})"
         else
             _err "git clone failed."
             return 1
