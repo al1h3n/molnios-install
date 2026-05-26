@@ -102,13 +102,13 @@ icons_uninstall(){
 }
 
 symlinks(){
-    if [ ! $OS = "nix" ];then
+    # if [ ! $OS = "nixos" ];then
         mkdir -p /usr/local/bin
-        cp $SHARED_PATH/scripts/path.sh /usr/local/bin/path.sh
+        # cp $SHARED_PATH/scripts/path.sh /usr/local/bin/path.sh
+        # chmod a+x $SHARED_PATH/scripts/path.sh
         cp $(readlink -f $0) /usr/local/bin/molnios.sh
-        chmod a+x $SHARED_PATH/scripts/path.sh
         chmod a+x /usr/local/bin/molnios.sh
-    fi
+    # fi
     mkdir -p $USER_HOME/.local/share/molnios
     ln -sfn $SHARED_PATH/scripts $USER_HOME/.local/share/molnios/scripts
     ln -sfn $SHARED_PATH/config $USER_HOME/.local/share/molnios/config
