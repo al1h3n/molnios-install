@@ -228,7 +228,8 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged hardware-configuration.nix
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
-        rm ~/.config/gtk-3.0/settings.ini.backup
+        rm ~/.config/gtk-3.0/settings.ini
+        rm ~/.config/gtk-4.0/settings.ini
 
         cd $SHARED_PATH&&git add .
         if [ $PROMPT = true ];then
