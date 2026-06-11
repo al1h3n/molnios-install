@@ -104,8 +104,8 @@ icons_uninstall(){
 symlinks(){
     # if [ ! $OS = "nixos" ];then
         mkdir -p /usr/local/bin
-        # cp $SHARED_PATH/scripts/path.sh /usr/local/bin/path.sh
-        # chmod a+x $SHARED_PATH/scripts/path.sh
+        # cp $SHARED_PATH/scripts/debug/path.sh /usr/local/bin/path.sh
+        # chmod a+x $SHARED_PATH/scripts/debug/path.sh
         cp $(readlink -f $0) /usr/local/bin/molnios.sh
         chmod a+x /usr/local/bin/molnios.sh
     # fi
