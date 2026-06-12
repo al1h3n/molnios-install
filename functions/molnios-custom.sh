@@ -138,6 +138,7 @@ dots_restore(){
     restore $HOME_CONFIG/waypaper/config.ini
     restore /etc/ly/config.ini
     restore $HOME_CONFIG/qBittorrent/qBittorrent.conf
+    restore $HOME_CONFIG/niri/config.kdl
     symlinks_remove
 }
 
@@ -163,7 +164,8 @@ dots_clean(){
         rm -f $HOME_CONFIG/qBittorrent/qBittorrent.conf
         restore $HOME_CONFIG/qBittorrent/qBittorrent.conf
         rm -rf $USER_HOME/.local/share/molnios
-        rm -rf $USER_HOME/Screenshots
+        # rm -rf $USER_HOME/Screenshots
+        rm -f $HOME_CONFIG/niri/config.kdl
         echo -e "${GREEN}Existing symlinks were cleaned.${RESET}"
 }
 
@@ -181,6 +183,7 @@ dots_backup(){
         backup /etc/ly/config.ini
         backup $HOME_CONFIG/waypaper/config.ini
         backup $HOME_CONFIG/qBittorrent/qBittorrent.conf
+        backup $HOME_CONFIG/niri/config.kdl
     fi
     ln -sfn $SHARED_CONFIG/config/hosts /etc/hosts
 
@@ -213,4 +216,7 @@ dots_backup(){
     for theme in $SHARED_CONFIG/qbit-themes/*.qbtheme; do
         ln -sfn $theme $HOME_CONFIG/qBittorrent/themes/$(basename $theme)
     done
+
+    mkdir -p $HOME_CONFIG/niri
+    ln -sfn $SHARED_CONFIG/niri/niri.kdl $HOME_CONFIG/niri/config.kdl
 }
