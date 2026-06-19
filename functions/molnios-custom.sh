@@ -104,10 +104,12 @@ icons_uninstall(){
 symlinks(){
     # if [ ! $OS = "nixos" ];then
         mkdir -p /usr/local/bin
-        # cp $SHARED_PATH/scripts/debug/path.sh /usr/local/bin/path.sh
+        # ln -sfn $SHARED_PATH/scripts/debug/path.sh /usr/local/bin/path.sh
         # chmod a+x $SHARED_PATH/scripts/debug/path.sh
         cp $(readlink -f $0) /usr/local/bin/molnios.sh
         chmod a+x /usr/local/bin/molnios.sh
+        ln -sfn $SHARED_PATH/scripts/gooker.sh /usr/local/bin/gooker.sh
+        chmod a+x $SHARED_PATH/scripts/debug/gooker.sh
     # fi
     mkdir -p $USER_HOME/.local/share/molnios
     ln -sfn $SHARED_PATH/scripts $USER_HOME/.local/share/molnios/scripts
@@ -126,6 +128,7 @@ symlinks_remove(){
     rm -rf $USER_HOME/.local/share/molnios/sfx # Because of video repo
     rm -rf /usr/local/bin/path.sh
     rm -rf /usr/local/bin/molnios.sh
+    rm -rf /usr/local/bin/gooker.sh
 }
 
 dots_restore(){
