@@ -237,6 +237,10 @@ install(){
         rm ~/.config/yazi/theme.toml.backup
         rm ~/.config/wezterm/wezterm.lua.backup
 
+        if [ $FRESH_INSTALL = true ];then
+            find $USER_HOME/.config -name "*.backup" -delete
+        fi
+
         cd $SHARED_PATH&&git add .
         if [ $PROMPT = true ];then
             echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
