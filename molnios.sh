@@ -228,14 +228,15 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged hardware-configuration.nix
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
-        rm ~/.config/gtk-3.0/settings.ini
-        rm ~/.config/gtk-4.0/settings.ini
-        rm ~/.config/gtk-3.0/settings.ini.backup
-        rm ~/.config/gtk-4.0/settings.ini.backup
-        rm ~/.config/gtk-3.0/gtk.css.backup
-        rm ~/.config/gtk-4.0/gtk.css.backup
-        rm ~/.config/yazi/theme.toml.backup
-        rm ~/.config/wezterm/wezterm.lua.backup
+        rm -f \
+        "$USER_HOME/.config/gtk-3.0/settings.ini" \
+        "$USER_HOME/.config/gtk-4.0/settings.ini" \
+        "$USER_HOME/.config/gtk-3.0/settings.ini.backup" \
+        "$USER_HOME/.config/gtk-4.0/settings.ini.backup" \
+        "$USER_HOME/.config/gtk-3.0/gtk.css.backup" \
+        "$USER_HOME/.config/gtk-4.0/gtk.css.backup" \
+        "$USER_HOME/.config/yazi/theme.toml.backup" \
+        "$USER_HOME/.config/wezterm/wezterm.lua.backup"
 
         if [ $FRESH_INSTALL = true ];then
             find $USER_HOME/.config -name "*.backup" -delete
