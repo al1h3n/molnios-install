@@ -229,14 +229,18 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
         rm -f \
-        "$USER_HOME/.config/gtk-3.0/settings.ini" \
-        "$USER_HOME/.config/gtk-4.0/settings.ini" \
-        "$USER_HOME/.config/gtk-3.0/settings.ini.backup" \
-        "$USER_HOME/.config/gtk-4.0/settings.ini.backup" \
-        "$USER_HOME/.config/gtk-3.0/gtk.css.backup" \
-        "$USER_HOME/.config/gtk-4.0/gtk.css.backup" \
-        "$USER_HOME/.config/yazi/theme.toml.backup" \
-        "$USER_HOME/.config/wezterm/wezterm.lua.backup"
+            "$USER_HOME/.config/gtk-3.0/settings.ini" \
+            "$USER_HOME/.config/gtk-4.0/settings.ini" \
+            "$USER_HOME/.config/gtk-3.0/settings.ini.backup" \
+            "$USER_HOME/.config/gtk-4.0/settings.ini.backup" \
+            "$USER_HOME/.config/gtk-3.0/gtk.css.backup" \
+            "$USER_HOME/.config/gtk-4.0/gtk.css.backup" \
+            "$USER_HOME/.config/gtk-3.0/gtk.css" \
+            "$USER_HOME/.config/gtk-4.0/gtk.css" \
+            "$USER_HOME/.config/yazi/theme.toml.backup" \
+            "$USER_HOME/.config/wezterm/wezterm.lua.backup" \
+            "$USER_HOME/.config/yazi/theme.toml" \
+            "$USER_HOME/.config/wezterm/wezterm.lua"
 
         if [ $FRESH_INSTALL = true ];then
             find $USER_HOME/.config -name "*.backup" -delete
