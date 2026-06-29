@@ -1,27 +1,30 @@
 usage() {
 cat <<EOF
-Usage: $(basename "$0") [OPTIONS]
+${RED}Usage${RESET}: $(basename "$0") [OPTIONS]
 
-Options:
-  -d, --debug             Enable debug mode.
-  -f, --force             Force fresh installation.
-  -dv, --download-videos  Download video wallpapers (~2.1GiB).
-  -dp, --download-photos  Download photo wallpapers (~711MiB).
-  -np, --no-prompt        Disable prompt for configuration adjustments.
-  -h, --home              Run only "home-manager switch".
-  -nn, --no-nix           Disable Nix even if it exists; abort on NixOS.
-  -cg, --collect-garbage  Runs command "nix-collect-garbage -d" (only when nix is enabled and installed).
-  -nb, --no-backups       Disable symlink backups.
-  -u, --update            Update existing installation.
-  -r, --remove            Remove existing installation.
-  -re, --reboot           Reboot after installation.
+${GREEN}Options:${RESET}
+  -d, --debug                  Enable debug mode.
+  -f, --force                  Force fresh installation.
+  -dv, --download-videos       Download video wallpapers (~2.1GiB).
+  -dp, --download-photos       Download photo wallpapers (~711MiB).
+  -np, --no-prompt             Disable prompt for configuration adjustments.
+  -h, --home                   Run only "home-manager switch".
+  -nn, --no-nix                Disable Nix even if it exists; abort on NixOS.
+  -inc, --install-nix-channel  Install nixpkgs-unstable channel if nix installed.
+  -cg, --collect-garbage       Runs command "nix-collect-garbage -d" (only when nix is enabled and installed).
+  -b, --backups                Enable symlink backups.
+  -u, --update                 Update existing installation.
+  -r, --remove                 Remove existing installation.
+  -re, --reboot                Reboot after installation.
 
-Other options:
+${RED}Other options:${RESET}
   -H, --help, -?, --?     Show this help message.
 
-Notes:
+${YELLOW}Notes:${RESET}
   - Flags with no arguments act as toggles.
   - Unknown options will trigger an error and display this usage.
+
+${BLUE}Example: $(basename "$0") -f -dp -np -cg${RESET}
 EOF
 }
 

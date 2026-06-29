@@ -49,8 +49,9 @@ while [[ $# -gt 0 ]];do
     -np|--no-prompt) PROMPT=false;; # Show prompt to adjust configurations.
     -h|--home) ONLY_HOME=true;; # Run only "home-manager switch".
     -nn|--no-nix) NO_NIX=true;; # Disable nix even if it exists. On nixOS, aborts installation.
+    -inc|--install-nix-channel) INSTALL_NIX_CHANNEL=true;;
     -ni|--nix-install) NIX_INSTALL=true;; # Enable installation of nix (not nixOS).
-    -nb|--no-backups) NO_BACKUPS=true;; # Disables symlink backups.
+    -b|--backups) BACKUPS=true;; # Disables symlink backups.
     -u|--update) UPDATE=true;;
     -r|--remove) REMOVE=true;;
     -cg|--collect-garbage) COLLECT_GARBAGE=true;;
@@ -66,7 +67,7 @@ done
 # x_MEDIA_PATH - path for shared wallpapers (takes a lot of space).
 
 if exists nixos-rebuild;then
-    OS="nixos"
+    OS="nix"
     SHARED_PATH=/etc/nixos/shared
     SHARED_NIX_PATH=/etc/nixos/molnixos
     SHARED_MEDIA_PATH=$USER_HOME/.local/share/molnios/molnios-media/wallpapers
@@ -90,13 +91,15 @@ fi
 
 if exists nix;then
     NIX_INSTALLED=true;
-    # if [ $OS != "nixos" ];then
-    #     nix_install_channel nixos.org/channels/nixpkgs-unstable unstable
-    # fi
+    if [ $OS != "nix" ];then
+        if [ $INSTALL_NIX_CHANNEL != false ];then
+            nix_install_channel nixos.org/channels/nixpkgs-unstable unstable
+        fi
+    fi
 fi
 
 if ! exists nix;then
-    if [ $NIX_INSTALL != "false" ];then
+    if [ $NIX_INSTALL != false ];then
         nix_install
     fi
 fi
@@ -108,7 +111,7 @@ if [ $EUID -ne 0 ];then
 fi
 
 _repo(){
-    if [ $FRESH_INSTALL != "true" ];then
+    if [ $FRESH_INSTALL != true ];then
         repo "$@"
     else
         repo --force "$@"
@@ -165,10 +168,10 @@ remove(){
 }
 
 if $DEBUG;then
-    echo MD: Debug mode enabled.
+    echo -e "${BLUE}MolniOS: Debug mode enabled.${RESET}"
     echo -e "File name - $0. Repositores: shared dotfiles repo - $SHARED_REPO,\nshared wallpaper repo (video) - $SHARED_MEDIA_DYNAMIC_REPO,\nshared static wallpaper repo - $SHARED_MEDIA_STATIC_REPO."
     echo -e "Current OS: $OS"
-    echo -e "Testing (you should see colorful text): ${FINISH}this is a green text${RESET}, ${RED}whereas this is a red one.${RESET}."
+    echo -e "Testing (you should see colorful text): ${FINISH}this is a green text${RESET}, ${RED}whereas this is a red one${RESET}."
     echo -e "Current user: $USER, directory - ${CURRENT_DIR}, shared path - $SHARED_PATH."
     if ping -q -c 1 -W 1 8.8.8.8 >/dev/null;then
         echo -e "Internet: ${GREEN}working${RESET}."
@@ -180,18 +183,16 @@ if $DEBUG;then
     else
         echo -e "${RED}Git: NOT EXISTING!${RESET}"
     fi
-    echo MD: End of debug.
+    echo -e "${BLUE}MolniOS: End of debug.${RESET}"
 fi
 
-if $FRESH_INSTALL;then
-    if [ $OS = "nix" ];then
-        if [ $NO_BACKUPS != true ];then
-            backup /etc/nixos
-        fi
+if [ $OS = "nix" ];then
+    if $FRESH_INSTALL;then
         rm -f /etc/nixos/*configuration.nix
         nixos-generate-config
-    # else
-        # rm -rf ./molnios*
+    fi
+    if [ $BACKUPS != false ];then
+        backup /etc/nixos
     fi
 fi
 
@@ -205,7 +206,7 @@ fi
 
 install(){
     git config --global http.followRedirects true
-    if [ $OS = "nixos" ];then
+    if [ $OS = "nix" ];then
         _repo $SHARED_REPO $SHARED_PATH
         mkdir -p $SHARED_MEDIA_PATH
         _repo $SHARED_REPO_NIX $SHARED_NIX_PATH
@@ -228,29 +229,16 @@ install(){
         git -C $SHARED_NIX_PATH update-index --assume-unchanged hardware-configuration.nix
         git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
 
-        rm -f \
-            "$USER_HOME/.config/gtk-3.0/settings.ini" \
-            "$USER_HOME/.config/gtk-4.0/settings.ini" \
-            "$USER_HOME/.config/gtk-3.0/settings.ini.backup" \
-            "$USER_HOME/.config/gtk-4.0/settings.ini.backup" \
-            "$USER_HOME/.config/gtk-3.0/gtk.css.backup" \
-            "$USER_HOME/.config/gtk-4.0/gtk.css.backup" \
-            "$USER_HOME/.config/gtk-3.0/gtk.css" \
-            "$USER_HOME/.config/gtk-4.0/gtk.css" \
-            "$USER_HOME/.config/yazi/theme.toml.backup" \
-            "$USER_HOME/.config/wezterm/wezterm.lua.backup" \
-            "$USER_HOME/.config/yazi/theme.toml" \
-            "$USER_HOME/.config/wezterm/wezterm.lua"
-
-        if [ $FRESH_INSTALL = true ];then
-            find $USER_HOME/.config -name "*.backup" -delete
-        fi
+        # if [ $FRESH_INSTALL = true ];then
+        #     find $USER_HOME/.config -name "*.backup" -delete
+        # fi
 
         cd $SHARED_PATH&&git add .
         if [ $PROMPT = true ];then
             echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
         fi
 
+        sh $SHARED_PATH/scripts/reloadus.sh
         nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
 

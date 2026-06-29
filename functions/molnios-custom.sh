@@ -173,7 +173,7 @@ dots_clean(){
 }
 
 dots_backup(){
-    if [ $NO_BACKUPS = true ];then
+    if [ $BACKUPS != true ];then
         echo -e "Backups were disabled."
     else
         dots_clean
