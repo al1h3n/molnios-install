@@ -238,7 +238,7 @@ install(){
             echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
         fi
 
-        sh $SHARED_PATH/scripts/reloadus.sh
+        sh $L_PATH/scripts/reloadus.sh
         nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
 
