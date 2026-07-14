@@ -37,7 +37,7 @@ esac
 . "$SCRIPT_DIR/functions/molnios-custom.sh"
 . "$SCRIPT_DIR/functions/nix.sh"
 
-. "$SCRIPT_DIR/run/gruvbox-theme.sh"
+. "$SCRIPT_DIR/run/theme.sh"
 
 ORIG_ARGS=("$@")
 while [[ $# -gt 0 ]];do
@@ -239,7 +239,12 @@ install(){
         fi
 
         sh $L_PATH/scripts/reloadus.sh
-        nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
+        nix flake update --flake $SHARED_NIX_PATH
+        if [ $ONLY_HOME != false ];then
+            home-manager switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
+        else
+            nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
+        fi
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
 
         BREEZE_COLORS=$(nix eval --raw nixpkgs#kdePackages.breeze)/share/color-schemes/BreezeDark.colors

@@ -1,4 +1,4 @@
-# Colors (gruvbox theme).
+# Colors.
 
 # Fallback to 256-color approximations
 GREEN=$'\e[0;32m'
