@@ -312,7 +312,7 @@ echo You must have git pre-installed before launching the script.
 echo -e "${GREEN}=========================================="
 echo -e "    STARTING SYSTEM PRE-INSTALLATION..      "
 echo -e "==========================================${RESET}"
-echo -e "Pay attention that every OS needs to be configured ${RED}after${RESET} the installation (with drivers)!"
+echo -e "Pay attention that every OS needs to be configured ${RED}after${RESET} the installation (with drivers)"'!'
 
 # 3.1. Default action.
 install
