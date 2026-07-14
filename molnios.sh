@@ -241,9 +241,10 @@ install(){
         sh $L_PATH/scripts/reloadus.sh
         nix flake update --flake $SHARED_NIX_PATH
         if [ $ONLY_HOME != false ];then
-            home-manager switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
+            # --upgrade-all only works on non-flake systems. For flake-based systems use "nix flake update" first.
+            home-manager switch --impure --flake $SHARED_NIX_PATH#main
         else
-            nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
+            nixos-rebuild switch --impure --flake $SHARED_NIX_PATH#main
         fi
         # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
 
