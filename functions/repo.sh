@@ -166,7 +166,9 @@ ${_BLD}Options:${_RST}
         if git clone --depth 1 --filter=blob:none "$CLONE_URL" "$DEST"; then
             local FINAL_SHA
             FINAL_SHA="$(git -C "$DEST" rev-parse HEAD 2>/dev/null)"
-            rm -rf "$DEST/.git"
+            if [[ "$DEST" != *"/nixos"* && "$DEST" != *"/molnixos"* ]]; then
+                rm -rf "$DEST/.git"
+            fi
             echo "$FINAL_SHA" > "$DEST/.repo_commit"
             _ok "Done → '${DEST}' (no .git, commit cached: ${FINAL_SHA:0:8})"
         else
