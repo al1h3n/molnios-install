@@ -72,6 +72,7 @@ if exists nixos-rebuild;then
     SHARED_NIX_PATH=/etc/nixos/molnixos
     SHARED_MEDIA_PATH=$USER_HOME/.local/share/molnios/molnios-media/wallpapers
     SHARED_REPO_NIX="gitlab.com/al1h3n/molnixos"
+    L_PATH=$USER_HOME/.local/share/molnios
 elif [ $(uname) = "Darwin" ];then
     OS="mac"
     SHARED_PATH=$USER_HOME/maconlyos/shared
@@ -239,7 +240,7 @@ install(){
         fi
 
         sh $L_PATH/scripts/reloadus.sh
-        nix flake update --flake $SHARED_NIX_PATH
+        nix --extra-experimental-features "nix-command flakes" flake update --flake $SHARED_NIX_PATH
         if [ $ONLY_HOME != false ];then
             # --upgrade-all only works on non-flake systems. For flake-based systems use "nix flake update" first.
             home-manager switch --impure --flake $SHARED_NIX_PATH#main
