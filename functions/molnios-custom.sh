@@ -106,8 +106,11 @@ symlinks(){
         mkdir -p /usr/local/bin
         # ln -sfn $SHARED_PATH/scripts/debug/path.sh /usr/local/bin/path.sh
         # chmod a+x $SHARED_PATH/scripts/debug/path.sh
-        cp $(readlink -f $0) /usr/local/bin/molnios.sh
-        chmod a+x /usr/local/bin/molnios.sh
+
+        # Buggy.
+        # cp $(readlink -f $0) /usr/local/bin/molnios.sh
+        # chmod a+x /usr/local/bin/molnios.sh
+
         ln -sfn $SHARED_PATH/scripts/gooker.sh /usr/local/bin/gooker.sh
         chmod a+x $SHARED_PATH/scripts/gooker.sh
     # fi
@@ -116,6 +119,7 @@ symlinks(){
     ln -sfn $SHARED_PATH/config $USER_HOME/.local/share/molnios/config
     ln -sfn $SHARED_PATH/images $USER_HOME/.local/share/molnios/images
     ln -sfn $SHARED_PATH/sfx $USER_HOME/.local/share/molnios/sfx
+    ln -sfn $SHARED_PATH/external $USER_HOME/.local/share/molnios/external
     chown -hR $USER: $USER_HOME/.local/share/molnios
     echo -e "${GREEN}Everything was successfully symlinked.${RESET}"
 }
@@ -126,6 +130,7 @@ symlinks_remove(){
     rm -rf $USER_HOME/.local/share/molnios/config
     rm -rf $USER_HOME/.local/share/molnios/images
     rm -rf $USER_HOME/.local/share/molnios/sfx # Because of video repo
+    m -rf $USER_HOME/.local/share/molnios/external
     rm -rf /usr/local/bin/path.sh
     rm -rf /usr/local/bin/molnios.sh
     rm -rf /usr/local/bin/gooker.sh
