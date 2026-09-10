@@ -10,3 +10,7 @@ nix_install(){
         echo -e "nix wasn't installed: you either have nixOS or disabled nix in arguments."
     fi
 }
+
+flake_update(){
+    nix --extra-experimental-features "nix-command flakes" flake update $@
+}

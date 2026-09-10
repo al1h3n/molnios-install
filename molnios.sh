@@ -126,7 +126,7 @@ update(){
         symlinks
     fi
     if [[ $OS != "nix" && $NO_NIX != true ]];then
-        nix flake update
+        flake_update
         home-manager switch --impure --flake $SHARED_NIX_PATH#main
     fi
     if [ $OS = "nix" ];then
@@ -142,7 +142,7 @@ update(){
         tldr --update
     elif [ $OS = "mac" ];then
         _repo $SHARED_REPO_MAC $SHARED_MAC_PATH
-        nix flake update --flake $SHARED_MAC_PATH
+        flake_update --flake $SHARED_MAC_PATH
         darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
         brew upgrade
     else
@@ -240,7 +240,7 @@ install(){
         fi
 
         sh $L_PATH/scripts/reloadus.sh
-        nix --extra-experimental-features "nix-command flakes" flake update --flake $SHARED_NIX_PATH
+        flake_update --flake $SHARED_NIX_PATH
         if [ $ONLY_HOME != false ];then
             # --upgrade-all only works on non-flake systems. For flake-based systems use "nix flake update" first.
             home-manager switch --impure --flake $SHARED_NIX_PATH#main
