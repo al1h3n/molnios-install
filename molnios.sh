@@ -239,38 +239,22 @@ install(){
             echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
         fi
 
-        sh $L_PATH/scripts/reloadus.sh
         flake_update --flake $SHARED_NIX_PATH
         if [ $ONLY_HOME != false ];then
             # --upgrade-all only works on non-flake systems. For flake-based systems use "nix flake update" first.
+            # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
             home-manager switch --impure --flake $SHARED_NIX_PATH#main
         else
             nixos-rebuild switch --impure --flake $SHARED_NIX_PATH#main
         fi
-        # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
-
-        BREEZE_COLORS=$(nix eval --raw nixpkgs#kdePackages.breeze)/share/color-schemes/BreezeDark.colors
-        mkdir -p ~/.config/qt6ct ~/.config/qt5ct
-        rm ~/.config/qt6ct/qt6ct.conf
-        rm ~/.config/qt5ct/qt5ct.conf
-
-        cat > ~/.config/qt6ct/qt6ct.conf << EOF
-[Appearance]
-icon_theme=MacTahoe
-style=Breeze-Dark
-color_scheme_path=$BREEZE_COLORS
-custom_palette=true
-EOF
-
-        cat > ~/.config/qt5ct/qt5ct.conf << EOF
-[Appearance]
-icon_theme=MacTahoe
-style=Breeze-Dark
-color_scheme_path=$BREEZE_COLORS
-custom_palette=true
-EOF
-    nix-store --optimise
-    return 0
+        sh $L_PATH/scripts/reloadus.sh
+        # qt5ct/qt6ct config is owned by molnixos home/dots/ui.nix (seeded once,
+        # then writable so the GUI and Noctalia palette keep working).
+        # Do not write it here: it raced the rebuild, pointed at a
+        # non-gcrooted breeze store path that nix-collect-garbage -d below
+        # deleted, and dropped the [Fonts] section.
+        nix-store --optimise
+        return 0
     elif [ $OS = "arch" ];then
         rm -rf /tmp/paru*
         backup $ENV_FILE
