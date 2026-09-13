@@ -51,16 +51,29 @@ packages_p(){
     makepkg -si
     '''
 
-    echo "Run these commands and then hit enter:"
-    echo '''[yay/paru] -Sy --needed temurin-bin-21 temurin-bin-25
-    yt-x 64gram-desktop-bin vesktop notion-app-electron waypaper
-    mpvpaper-git mpvpaper-stop-git apple-fonts
-    zsh-theme-powerlevel10k-git zsh-autocomplete-git
-    hyprshell vscodium-bin pay-respects-bin spicetify-cli spicetify-marketplace-bin
-    zinit qbittorrent-enhanced we10x-icon-theme-git mactahoe-icon-theme-git
-    '''
+    # Was a wall of text telling the user to retype package names by hand,
+    # followed by a bare `read`. The list is data, so it is data now.
+    local aur_pkgs=(
+        temurin-bin-21 temurin-bin-25 yt-x 64gram-desktop-bin vesktop
+        notion-app-electron waypaper mpvpaper-git mpvpaper-stop-git apple-fonts
+        zsh-theme-powerlevel10k-git zsh-autocomplete-git hyprshell vscodium-bin
+        pay-respects-bin spicetify-cli spicetify-marketplace-bin zinit
+        qbittorrent-enhanced we10x-icon-theme-git mactahoe-icon-theme-git
+    )
+
+    if exists gum;then
+        local chosen
+        chosen=$(printf '%s\n' "${aur_pkgs[@]}" \
+            | gum choose --no-limit --selected="$(IFS=,;echo "${aur_pkgs[*]}")" \
+                         --header "AUR packages to install:")
+        [ -n "$chosen" ] && pa $chosen
+    else
+        echo "Run this and then hit enter:"
+        echo "  [yay/paru] -Sy --needed ${aur_pkgs[*]}"
+        read -r
+    fi
+
     echo "spicetify&&spicetify config custom_apps marketplace&&spicetify backup apply"
-    read
     # openoffice-bin
 
     echo "JRE 8 for 1.16.5 and older, 21 for 1.17-1.21.11, 25 for 26.x+. Install JRE instead of JDK (wastes less space). Adoptium is better in any case."

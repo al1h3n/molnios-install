@@ -43,6 +43,15 @@ esac
 
 . "$SCRIPT_DIR/run/theme.sh"
 
+_pause(){
+    if exists gum;then
+        gum confirm --affirmative="Continue" --negative="Abort" "$1" || exit 1
+    else
+        echo -ne "${YELLOW}$1 Hit enter to continue.${RESET} "
+        read -r
+    fi
+}
+
 ORIG_ARGS=("$@")
 while [[ $# -gt 0 ]];do
   case $1 in
@@ -252,7 +261,7 @@ install(){
 
         cd $SHARED_PATH&&git add .
         if [ $PROMPT = true ];then
-            echo -ne "${YELLOW}Adjust your modules configuration now and then hit enter.${RESET} "&&read
+            _pause "Adjust your modules configuration now."
         fi
 
         flake_update --flake $SHARED_NIX_PATH
@@ -302,7 +311,7 @@ install(){
         media
         _repo $SHARED_REPO_MAC $SHARED_MAC_PATH
 
-        read -p "Adjust your configuration now and then hit enter."
+        _pause "Adjust your configuration now."
         darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
     fi
 }

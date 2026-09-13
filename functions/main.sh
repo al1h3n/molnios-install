@@ -29,16 +29,23 @@ EOF
 }
 
 prompt(){
-    if [ $PROMPT == true ];then
-        read -p "Do you want to proceed with $1? (y/n) " yn
-        case $yn in
-            [Yy]* ) echo -e "${BLUE}Proceeding..${RESET}";;
-            * ) echo -e "${GREEN}Getting out..${RESET}"; exit;;
-        esac
+    if [ "$PROMPT" != true ];then
+        echo "Proceed with $1 -> skipped.."
         return 0
-    else
-        echo "Procced with $1 -> skipped.."
     fi
+    if exists gum;then
+        if gum confirm "Do you want to proceed with $1?";then
+            echo -e "${BLUE}Proceeding..${RESET}"
+            return 0
+        fi
+        echo -e "${GREEN}Getting out..${RESET}"
+        exit 0
+    fi
+    read -r -p "Do you want to proceed with $1? (y/n) " yn
+    case $yn in
+        [Yy]* ) echo -e "${BLUE}Proceeding..${RESET}";;
+        * ) echo -e "${GREEN}Getting out..${RESET}"; exit 0;;
+    esac
 }
 
 file(){ # Individual file downloader.
