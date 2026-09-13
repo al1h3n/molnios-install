@@ -5,8 +5,8 @@
 # MM    MM aa  aaa dd   dd eeeee     bb   bb  yyyyyy    aa  aaa lll  11 hh   hh     333 nn   nn
 # MM    MM  aaa aa  dddddd  eeeee    bbbbbb       yy     aaa aa lll 111 hh   hh 333333  nn   nn
 #                                             yyyyy
-# Support - al1h3n(tg,ds) | Donate me - paypal.me/al1h3n
-# MolniOS Downloader v1 - Pre-installations for dotfiles.
+# https://codeberg.org/al1h3n/molnios-install
+# MolniOS Downloader - Pre-installations for dotfiles.
 # Part of the MolniOS project.
 
 # ! CHANGE APPROACH TO NIX
