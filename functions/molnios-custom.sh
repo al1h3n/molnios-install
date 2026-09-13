@@ -21,16 +21,16 @@ pa(){
 }
 
 ap(){
-    apk add --no-cache $1
+    apk add --no-cache "$@"
 }
 
 de(){
-    apt install -y $1
+    apt install -y "$@"
 }
 
 
 cursor(){
-    mkdir -p $USER_HOME/.local/share/icons/$cursor_name
+    mkdir -p "$USER_HOME/.local/share/icons"
     cp -r $SHARED_PATH/cursors/$cursor_name $USER_HOME/.local/share/icons
     echo -e "${GREEN}Cursor was installed.${RESET}"
 }
@@ -102,24 +102,21 @@ icons_uninstall(){
 }
 
 symlinks(){
-    # if [ ! $OS = "nixos" ];then
-        mkdir -p /usr/local/bin
-        # ln -sfn $SHARED_PATH/scripts/debug/path.sh /usr/local/bin/path.sh
-        # chmod a+x $SHARED_PATH/scripts/debug/path.sh
+    mkdir -p /usr/local/bin
+    ln -sfn "$SHARED_PATH/scripts/gooker.sh" /usr/local/bin/gooker.sh
+    chmod a+x "$SHARED_PATH/scripts/gooker.sh"
 
-        # Buggy.
-        # cp $(readlink -f $0) /usr/local/bin/molnios.sh
-        # chmod a+x /usr/local/bin/molnios.sh
+    # Symlinked, not copied: a copy loses functions/, which is what the old
+    # commented-out `cp` was marked "Buggy" for. molnios.sh resolves its own
+    # symlink with readlink -f, so sourcing still works through this path.
+    ln -sfn "$SCRIPT_DIR/molnios.sh" /usr/local/bin/molnios.sh
+    chmod a+x "$SCRIPT_DIR/molnios.sh"
 
-        ln -sfn $SHARED_PATH/scripts/gooker.sh /usr/local/bin/gooker.sh
-        chmod a+x $SHARED_PATH/scripts/gooker.sh
-    # fi
-    mkdir -p $USER_HOME/.local/share/molnios
-    ln -sfn $SHARED_PATH/scripts $USER_HOME/.local/share/molnios/scripts
-    ln -sfn $SHARED_PATH/config $USER_HOME/.local/share/molnios/config
-    ln -sfn $SHARED_PATH/images $USER_HOME/.local/share/molnios/images
-    ln -sfn $SHARED_PATH/sfx $USER_HOME/.local/share/molnios/sfx
-    chown -hR $USER: $USER_HOME/.local/share/molnios
+    mkdir -p "$USER_HOME/.local/share/molnios"
+    for d in scripts config images sfx;do
+        ln -sfn "$SHARED_PATH/$d" "$USER_HOME/.local/share/molnios/$d"
+    done
+    chown -hR "$USER": "$USER_HOME/.local/share/molnios"
     echo -e "${GREEN}Everything was successfully symlinked.${RESET}"
 }
 
@@ -191,7 +188,7 @@ dots_backup(){
         backup $HOME_CONFIG/qBittorrent/qBittorrent.conf
         backup $HOME_CONFIG/niri/config.kdl
     fi
-    ln -sfn $SHARED_CONFIG/config/hosts /etc/hosts
+    ln -sfn $SHARED_CONFIG/hosts /etc/hosts
 
     mkdir -p $HOME_CONFIG/fastfetch
     ln -sfn $SHARED_CONFIG/fastfetch.jsonc $HOME_CONFIG/fastfetch/config.jsonc
@@ -200,12 +197,11 @@ dots_backup(){
     ln -sfn $SHARED_CONFIG/feh.conf $HOME_CONFIG/feh/buttons
 
     mkdir -p $HOME_CONFIG/hypr
-    ln -sfn $SHARED_CONFIG/hyprland-monolithic/hypr.conf $HOME_CONFIG/hypr/hyprland.conf # TODO: change path to lua config when 0.55 will be released.
-    ln -sfn $SHARED_CONFIG/hyprland-monolithic/custom $HOME_CONFIG/hypr/custom
+    ln -sfn $SHARED_CONFIG/hyprland/hyprland.lua $HOME_CONFIG/hypr/hyprland.lua
 
     mkdir -p $HOME_CONFIG/kitty
-    ln -sfn $SHARED_CONFIG/kitty.conf $HOME_CONFIG/kitty/kitty.conf
-    ln -sfn $SHARED_CONFIG/kitty-style.conf $HOME_CONFIG/kitty/kitty-style.conf
+    ln -sfn $SHARED_CONFIG/kitty/kitty.conf $HOME_CONFIG/kitty/kitty.conf
+    ln -sfn $SHARED_CONFIG/kitty/kitty-style.conf $HOME_CONFIG/kitty/kitty-style.conf
 
     mkdir -p /etc/ly
     ln -sfn $SHARED_CONFIG/ly.ini /etc/ly/config.ini
@@ -217,7 +213,7 @@ dots_backup(){
         $HOME_CONFIG/waypaper/config.ini
 
     mkdir -p $HOME_CONFIG/qBittorrent/themes
-    ln -sfn $SHARED_CONFIG/qbittorrent $HOME_CONFIG/qBittorrent/qBittorrent.conf
+    ln -sfn $SHARED_CONFIG/qbittorrent.ini $HOME_CONFIG/qBittorrent/qBittorrent.conf
     mkdir -p $HOME_CONFIG/qBittorrent/themes
     for theme in $SHARED_CONFIG/qbit-themes/*.qbtheme; do
         ln -sfn $theme $HOME_CONFIG/qBittorrent/themes/$(basename $theme)

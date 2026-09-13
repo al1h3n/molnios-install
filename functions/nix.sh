@@ -1,5 +1,5 @@
 nix_install_channel(){
-  nix-channel add https://$1 $2
+  nix-channel --add "https://$1" "$2"
   nix-channel --update
 }
 
@@ -12,5 +12,5 @@ nix_install(){
 }
 
 flake_update(){
-    nix --extra-experimental-features "nix-command flakes" flake update $@
+    nix --extra-experimental-features "nix-command flakes" flake update "$@"
 }

@@ -11,6 +11,8 @@ DOWNLOAD_PHOTO_WALLPAPERS="${DOWNLOAD_PHOTO_WALLPAPERS:-false}"
 PROMPT="${PROMPT:-true}"
 BACKUPS="${BACKUPS:-false}"
 REBOOT="${REBOOT:-false}"
+INSTALL_NIX_CHANNEL="${INSTALL_NIX_CHANNEL:-false}"
+NIX_INSTALL="${NIX_INSTALL:-false}"
 
 OS="not supported"
 SHARED_PATH="not existing"
@@ -29,6 +31,5 @@ ENV_FILE=/etc/environment
 SHARED_REPO="gitlab.com/al1h3n/molnios-shared"
 SHARED_MEDIA_STATIC_REPO="gitlab.com/al1h3n/molnios-media-static"
 SHARED_MEDIA_DYNAMIC_REPO="codeberg.org/al1h3n/molnios-media-dynamic"
-SHARED_CONFIG=$SHARED_PATH/config
 
 cursor_name="clay_white"

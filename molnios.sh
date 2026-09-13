@@ -25,8 +25,11 @@
 
 # To do in future: nix for all OS, check symlinking.
 
-case "$0" in
-  */*) SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd) ;;
+# readlink -f, so the script still finds functions/ when it is invoked through
+# the /usr/local/bin/molnios.sh symlink that symlinks() creates.
+SELF=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "$0")
+case "$SELF" in
+  */*) SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd) ;;
   *)   SCRIPT_DIR=$(pwd) ;;
 esac
 . "$SCRIPT_DIR/functions/variables.sh"
@@ -36,6 +39,7 @@ esac
 . "$SCRIPT_DIR/functions/main.sh"
 . "$SCRIPT_DIR/functions/molnios-custom.sh"
 . "$SCRIPT_DIR/functions/nix.sh"
+. "$SCRIPT_DIR/functions/packages.sh"
 
 . "$SCRIPT_DIR/run/theme.sh"
 
@@ -56,7 +60,7 @@ while [[ $# -gt 0 ]];do
     -r|--remove) REMOVE=true;;
     -cg|--collect-garbage) COLLECT_GARBAGE=true;;
     -re|--reboot) REBOOT=true;;
-    -H|--help|-?|--?) usage;;
+    -H|--help|-?|--?) usage; exit 0;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
   esac
   shift
@@ -80,15 +84,22 @@ elif [ $(uname) = "Darwin" ];then
     SHARED_MEDIA_PATH=$SHARED_PATH/molnios-media
     SHARED_REPO_MAC="gitlab.com/al1h3n/maconlyos"
 elif exists pacman || exists apt || exists apk;then
-    # if [[ exists pacman && !exists yay ]];then
-    #     AUR_INSTALL=true
-    # fi
+    # OS was never assigned here, so it kept variables.sh's "not supported"
+    # sentinel - a value with a space, which made every unquoted [ $OS = ... ]
+    # test below abort with "too many arguments" and left the arch/debian/alpine
+    # branches unreachable.
+    if exists pacman;then OS="arch"
+    elif exists apt;then  OS="debian"
+    else                  OS="alpine"
+    fi
     SHARED_PATH=/usr/local/bin/molnios
     SHARED_MEDIA_PATH=$SHARED_PATH/molnios-media/wallpapers
 else
     echo -e "${RED}Error: your OS is unsupported. Try install nix first.${RESET}"
     exit 1
 fi
+
+SHARED_CONFIG=$SHARED_PATH/config
 
 if exists nix;then
     NIX_INSTALLED=true;
@@ -152,18 +163,23 @@ update(){
 }
 
 remove(){
-    if [ $OS = "nix" ];then
+    case "$SHARED_PATH" in
+        ""|/|"not existing")
+            echo -e "${RED}Refusing to remove: SHARED_PATH is '$SHARED_PATH'.${RESET}"
+            exit 1
+            ;;
+    esac
+
+    if [ "$OS" = "nix" ];then
         prompt "removing files - CAN BREAK YOUR SYSTEM"
-        rm -rf $SHARED_PATH
-        rm -rf $SHARED_NIX_PATH
-    elif [ $OS = "mac" ];then
+        rm -rf "$SHARED_PATH" "$SHARED_NIX_PATH"
+    elif [ "$OS" = "mac" ];then
         prompt "removing MaconlyOS files"
-        rm -rf $SHARED_PATH
-        rm -rf $SHARED_MAC_PATH
+        rm -rf "$SHARED_PATH" "$SHARED_MAC_PATH"
     else
         prompt "removing files"
         dislaunch sweeper
-        rm -rf $SHARED_PATH
+        rm -rf "$SHARED_PATH"
     fi
     exit 0
 }
