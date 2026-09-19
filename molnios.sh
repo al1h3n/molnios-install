@@ -239,6 +239,13 @@ install(){
         media
         symlinks
 
+        if [ -d "$SHARED_PATH" ]; then
+            chown -R $USER:users "$SHARED_PATH"
+        fi
+        if [ -d "$SHARED_NIX_PATH" ]; then
+            chown -R $USER:users "$SHARED_NIX_PATH"
+        fi
+
         mkdir -p $USER_HOME/.local/state/nix/profiles
         mkdir -p /nix/var/nix/profiles/per-user/al1h3n
         chown -R $USER:users $USER_HOME/.local
