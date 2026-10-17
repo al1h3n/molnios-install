@@ -151,8 +151,8 @@ update(){
     fi
     if [ $OS = "nix" ];then
         _repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
-        nix-channel --update
-        nixos-rebuild switch --impure --upgrade-all --flake $SHARED_NIX_PATH#main
+        flake_update --flake "$SHARED_NIX_PATH" || exit 1
+        nixos-rebuild switch --impure --flake "$SHARED_NIX_PATH#main" || exit 1
     elif [ $OS = "arch" ];then
         if exists yay;then
             s yay --noconfirm
@@ -271,7 +271,7 @@ install(){
             _pause "Adjust your modules configuration now."
         fi
 
-        flake_update --flake $SHARED_NIX_PATH
+        flake_update --flake "$SHARED_NIX_PATH" || exit 1
         if [ $ONLY_HOME != false ];then
             # --upgrade-all only works on non-flake systems. For flake-based systems use "nix flake update" first.
             # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
