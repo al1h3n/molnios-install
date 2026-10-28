@@ -11,6 +11,7 @@ ${GREEN}Options:${RESET}
   -h, --home                   Run only "home-manager switch".
   -nn, --no-nix                Disable Nix even if it exists; abort on NixOS.
   -inc, --install-nix-channel  Install nixpkgs-unstable channel if nix installed.
+  -fu, --flake-update          Update all nix flake inputs to latest versions.
   -cg, --collect-garbage       Runs command "nix-collect-garbage -d" (only when nix is enabled and installed).
   -b, --backups                Enable symlink backups.
   -u, --update                 Update existing installation.

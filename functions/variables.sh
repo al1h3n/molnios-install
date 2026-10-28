@@ -13,6 +13,7 @@ BACKUPS="${BACKUPS:-false}"
 REBOOT="${REBOOT:-false}"
 INSTALL_NIX_CHANNEL="${INSTALL_NIX_CHANNEL:-false}"
 NIX_INSTALL="${NIX_INSTALL:-false}"
+FLAKE_UPDATE="${FLAKE_UPDATE:-false}"
 
 OS="not supported"
 SHARED_PATH="not existing"

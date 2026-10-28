@@ -64,6 +64,7 @@ while [[ $# -gt 0 ]];do
     -nn|--no-nix) NO_NIX=true;; # Disable nix even if it exists. On nixOS, aborts installation.
     -inc|--install-nix-channel) INSTALL_NIX_CHANNEL=true;;
     -ni|--nix-install) NIX_INSTALL=true;; # Enable installation of nix (not nixOS).
+    -fu|--flake-update) FLAKE_UPDATE=true;;
     -b|--backups) BACKUPS=true;; # Disables symlink backups.
     -u|--update) UPDATE=true;;
     -r|--remove) REMOVE=true;;
@@ -271,7 +272,10 @@ install(){
             _pause "Adjust your modules configuration now."
         fi
 
-        flake_update --flake "$SHARED_NIX_PATH" || exit 1
+        if [ $FLAKE_UPDATE != false ];then
+            flake_update --flake "$SHARED_NIX_PATH" || exit 1
+        fi
+
         if [ $ONLY_HOME != false ];then
             # --upgrade-all only works on non-flake systems. For flake-based systems use "nix flake update" first.
             # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
