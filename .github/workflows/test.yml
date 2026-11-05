@@ -1,0 +1,32 @@
+name: test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - name: shellcheck
+        run: nix run nixpkgs#shellcheck -- -x -s bash molnios.sh lib/*.sh tests/e2e.sh
+      - name: bats
+        run: nix run nixpkgs#bats -- tests/
+
+  e2e:
+    # A real install for a throwaway user on the (disposable) runner.
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - name: Clone molnixos and molnios-shared (same branch if it exists, else main)
+        run: |
+          for r in molnixos molnios-shared; do
+            git clone --depth 1 --branch "$GITHUB_REF_NAME" "https://github.com/al1h3n/$r" "../$r" \
+              || git clone --depth 1 "https://github.com/al1h3n/$r" "../$r"
+          done
+      - name: Install for a test user
+        run: sudo tests/e2e.sh ../molnixos ../molnios-shared

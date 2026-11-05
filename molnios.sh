@@ -5,350 +5,232 @@
 # MM    MM aa  aaa dd   dd eeeee     bb   bb  yyyyyy    aa  aaa lll  11 hh   hh     333 nn   nn
 # MM    MM  aaa aa  dddddd  eeeee    bbbbbb       yy     aaa aa lll 111 hh   hh 333333  nn   nn
 #                                             yyyyy
-# https://codeberg.org/al1h3n/molnios-install
-# MolniOS Downloader - Pre-installations for dotfiles.
-# Part of the MolniOS project.
+# molnios.sh v2 - installs MolniOS declaratively with nix on NixOS, macOS,
+# Arch, Debian and Alpine (and their derivatives).
+#
+# How it works:
+#   1. Detect the OS (os.sh) and install nix if needed (nix.sh).
+#   2. Clone molnixos (the flake) and molnios-shared (the dotfiles) (repos.sh).
+#   3. Make sure molnixos has hosts/<this hostname>/ (host.sh).
+#   4. Install what nix cannot do well here with the distro package manager,
+#      then switch the nix configurations (apply.sh).
+#   With --preset native, step 4 uses plain package lists and symlinks
+#   instead of nix (fallback.sh).
+#
+# The old v1 installer is in deprecated/v1/.
+set -euo pipefail
 
-# ! CHANGE APPROACH TO NIX
+SELF=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")
+SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd)
+# shellcheck source=lib/common.sh
+. "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/os.sh
+. "$SCRIPT_DIR/lib/os.sh"
+# shellcheck source=lib/nix.sh
+. "$SCRIPT_DIR/lib/nix.sh"
+# shellcheck source=lib/repos.sh
+. "$SCRIPT_DIR/lib/repos.sh"
+# shellcheck source=lib/host.sh
+. "$SCRIPT_DIR/lib/host.sh"
+# shellcheck source=lib/apply.sh
+. "$SCRIPT_DIR/lib/apply.sh"
+# shellcheck source=lib/fallback.sh
+. "$SCRIPT_DIR/lib/fallback.sh"
 
-# How it works?
-# 1. Script checks which OS you have.
-# 2. Script applies required flags.
-# 3. Makes requied actions (backing directories/files or updates existing git repos if needed)
-# ==============================================================================
+usage() {
+  cat <<EOF
+${BOLD}Usage:${RESET} $(basename "$0") [options]
 
-# To make gruvbox theme work use this command: sudo -E bash molnios.sh
-# Custom theme syntax only works in bash.
+${BOLD}Presets${RESET} (what to do when nix cannot install something well):
+  -p, --preset nix       nixpkgs wherever it works, distro packages only where
+                         it cannot (PAM, drivers, login shells...). Default.
+  -p, --preset hybrid    also take GUI apps from the distro package manager.
+  -p, --preset native    no nix at all: distro packages + plain symlinks.
+  -nn, --no-nix          same as --preset native (v1 flag).
 
-# Currently script suppports following OS:
-# Arch, Artix, Alpine, Debian, nixOS, macOS.
+${BOLD}Options:${RESET}
+  -H, --host NAME        host folder in molnixos/hosts (default: hostname)
+  -u, --update           pull the repos and apply again
+  -fu, --flake-update    update flake.lock (all inputs) before applying
+  -dp, --download-photos static wallpapers (~711 MiB)
+  -dv, --download-videos video wallpapers (~2.1 GiB)
+  -cg, --collect-garbage delete old nix generations afterwards
+  -re, --reboot          reboot when done
+  -y, -np, --yes         never ask, answer yes
+  -n, --dry-run          only print what would be done
+      --nix-installer rust|classic   how to install nix (default: rust)
+  -h, --help             this help
 
-# To do in future: nix for all OS, check symlinking.
+${BOLD}Environment:${RESET}
+  MOLNI_GIT_BASE   mirror, e.g. https://gitlab.com/al1h3n (default: GitHub)
+  MOLNI_FLAKE      where molnixos is cloned
+  MOLNI_SHARED     where molnios-shared is cloned
 
-# readlink -f, so the script still finds functions/ when it is invoked through
-# the /usr/local/bin/molnios.sh symlink that symlinks() creates.
-SELF=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "$0")
-case "$SELF" in
-  */*) SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd) ;;
-  *)   SCRIPT_DIR=$(pwd) ;;
-esac
-. "$SCRIPT_DIR/functions/variables.sh"
-. "$SCRIPT_DIR/functions/autostart.sh"
-. "$SCRIPT_DIR/functions/file.sh"
-. "$SCRIPT_DIR/functions/repo.sh"
-. "$SCRIPT_DIR/functions/main.sh"
-. "$SCRIPT_DIR/functions/molnios-custom.sh"
-. "$SCRIPT_DIR/functions/nix.sh"
-. "$SCRIPT_DIR/functions/packages.sh"
-
-. "$SCRIPT_DIR/run/theme.sh"
-
-_pause(){
-    if exists gum;then
-        gum confirm --affirmative="Continue" --negative="Abort" "$1" || exit 1
-    else
-        echo -ne "${YELLOW}$1 Hit enter to continue.${RESET} "
-        read -r
-    fi
+${BOLD}Example:${RESET} $(basename "$0") --preset hybrid -dp
+EOF
 }
 
-ORIG_ARGS=("$@")
-while [[ $# -gt 0 ]];do
-  case $1 in
-    -d|--debug) DEBUG=true;; # Force fresh install.
-    -f|--force) FRESH_INSTALL=true;; # Force fresh install.
-    -dv|--download-videos) DOWNLOAD_VIDEO_WALLPAPERS=true;; # Add media-dynamic repo (~2.1GiB!).
-    -dp|--download-photos) DOWNLOAD_PHOTO_WALLPAPERS=true;; # Add media-static repo (~711MiB!).
-    -np|--no-prompt) PROMPT=false;; # Show prompt to adjust configurations.
-    -h|--home) ONLY_HOME=true;; # Run only "home-manager switch".
-    -nn|--no-nix) NO_NIX=true;; # Disable nix even if it exists. On nixOS, aborts installation.
-    -inc|--install-nix-channel) INSTALL_NIX_CHANNEL=true;;
-    -ni|--nix-install) NIX_INSTALL=true;; # Enable installation of nix (not nixOS).
-    -fu|--flake-update) FLAKE_UPDATE=true;;
-    -b|--backups) BACKUPS=true;; # Disables symlink backups.
-    -u|--update) UPDATE=true;;
-    -r|--remove) REMOVE=true;;
-    -cg|--collect-garbage) COLLECT_GARBAGE=true;;
-    -re|--reboot) REBOOT=true;;
-    -H|--help|-?|--?) usage; exit 0;;
-    *) echo "Unknown option: $1" >&2; usage >&2; exit 1 ;;
-  esac
-  shift
-done
+PRESET="" HOST="" UPDATE=0 FLAKE_UPDATE=0 PHOTOS=0 VIDEOS=0 GC=0 REBOOT=0
+ASSUME_YES=0 DRY_RUN=0 NIX_INSTALLER=rust
 
-# 1.3. Local paths.
-# x_PATH - path for shared files such as configurations, scripts etc.
-# x_MEDIA_PATH - path for shared wallpapers (takes a lot of space).
-
-if exists nixos-rebuild;then
-    OS="nix"
-    SHARED_PATH=/etc/nixos/shared
-    SHARED_NIX_PATH=/etc/nixos/molnixos
-    SHARED_MEDIA_PATH=$USER_HOME/.local/share/molnios/molnios-media/wallpapers
-    SHARED_REPO_NIX="gitlab.com/al1h3n/molnixos"
-    L_PATH=$USER_HOME/.local/share/molnios
-elif [ $(uname) = "Darwin" ];then
-    OS="mac"
-    SHARED_PATH=$USER_HOME/maconlyos/shared
-    SHARED_MAC_PATH=$USER_HOME/maconlyos
-    SHARED_MEDIA_PATH=$SHARED_PATH/molnios-media
-    SHARED_REPO_MAC="gitlab.com/al1h3n/maconlyos"
-elif exists pacman || exists apt || exists apk;then
-    # OS was never assigned here, so it kept variables.sh's "not supported"
-    # sentinel - a value with a space, which made every unquoted [ $OS = ... ]
-    # test below abort with "too many arguments" and left the arch/debian/alpine
-    # branches unreachable.
-    if exists pacman;then OS="arch"
-    elif exists apt;then  OS="debian"
-    else                  OS="alpine"
-    fi
-    SHARED_PATH=/usr/local/bin/molnios
-    SHARED_MEDIA_PATH=$SHARED_PATH/molnios-media/wallpapers
-else
-    echo -e "${RED}Error: your OS is unsupported. Try install nix first.${RESET}"
-    exit 1
-fi
-
-SHARED_CONFIG=$SHARED_PATH/config
-
-if exists nix;then
-    NIX_INSTALLED=true;
-    if [ $OS != "nix" ];then
-        if [ $INSTALL_NIX_CHANNEL != false ];then
-            nix_install_channel nixos.org/channels/nixpkgs-unstable unstable
-        fi
-    fi
-fi
-
-if ! exists nix;then
-    if [ $NIX_INSTALL != false ];then
-        nix_install
-    fi
-fi
-
-# Checking for root.
-if [ $EUID -ne 0 ];then
-    echo -e "${YELLOW}Elevation needed. Restarting with sudo..${RESET}"
-    exec sudo bash $0 "${ORIG_ARGS[@]}"
-fi
-
-_repo(){
-    if [ $FRESH_INSTALL != true ];then
-        repo "$@"
-    else
-        repo --force "$@"
-    fi
-}
-
-# Main functions.
-update(){
-    _repo $SHARED_REPO $SHARED_PATH
-    if [ ! $OS = "mac" ];then
-        symlinks
-    fi
-    if [[ $OS != "nix" && $NO_NIX != true ]];then
-        flake_update
-        home-manager switch --impure --flake $SHARED_NIX_PATH#main
-    fi
-    if [ $OS = "nix" ];then
-        _repo $SHARED_REPO_NIX $SHARED_NIX_PATH #! Check if hardware-configuration.nix kills repo function.
-        flake_update --flake "$SHARED_NIX_PATH" || exit 1
-        nixos-rebuild switch --impure --flake "$SHARED_NIX_PATH#main" || exit 1
-    elif [ $OS = "arch" ];then
-        if exists yay;then
-            s yay --noconfirm
-        elif exists paru;then
-            s paru --noconfirm
-        fi
-        tldr --update
-    elif [ $OS = "mac" ];then
-        _repo $SHARED_REPO_MAC $SHARED_MAC_PATH
-        flake_update --flake $SHARED_MAC_PATH
-        darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
-        brew upgrade
-    else
-        exit 1
-    fi
-    exit 0
-}
-
-remove(){
-    case "$SHARED_PATH" in
-        ""|/|"not existing")
-            echo -e "${RED}Refusing to remove: SHARED_PATH is '$SHARED_PATH'.${RESET}"
-            exit 1
-            ;;
+parse_args() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      -p | --preset) PRESET=${2:-}; shift ;;
+      -nn | --no-nix) PRESET=native ;;
+      -H | --host) HOST=${2:-}; shift ;;
+      -u | --update) UPDATE=1 ;;
+      -fu | --flake-update) FLAKE_UPDATE=1 ;;
+      -dp | --download-photos) PHOTOS=1 ;;
+      -dv | --download-videos) VIDEOS=1 ;;
+      -cg | --collect-garbage) GC=1 ;;
+      -re | --reboot) REBOOT=1 ;;
+      -y | -np | --yes | --no-prompt) ASSUME_YES=1 ;;
+      -n | --dry-run) DRY_RUN=1 ;;
+      --nix-installer) NIX_INSTALLER=${2:-}; shift ;;
+      -h | --help | -\?) usage; exit 0 ;;
+      *) usage >&2; die "unknown option: $1" ;;
     esac
+    shift
+  done
+  case "$PRESET" in "" | nix | hybrid | native) ;; *) die "--preset must be nix, hybrid or native" ;; esac
+  case "$NIX_INSTALLER" in rust | classic) ;; *) die "--nix-installer must be rust or classic" ;; esac
+}
 
-    if [ "$OS" = "nix" ];then
-        prompt "removing files - CAN BREAK YOUR SYSTEM"
-        rm -rf "$SHARED_PATH" "$SHARED_NIX_PATH"
-    elif [ "$OS" = "mac" ];then
-        prompt "removing MaconlyOS files"
-        rm -rf "$SHARED_PATH" "$SHARED_MAC_PATH"
-    else
-        prompt "removing files"
-        dislaunch sweeper
-        rm -rf "$SHARED_PATH"
-    fi
+# git and curl before anything else (the official nix installer needs both).
+prerequisites() {
+  local os=$1 missing=()
+  exists git || missing+=(git)
+  exists curl || missing+=(curl)
+  [ ${#missing[@]} -eq 0 ] && return 0
+  info "installing prerequisites: ${missing[*]}"
+  case "$os" in
+    debian) missing+=(ca-certificates xz-utils) ;;
+    darwin) die "install the Xcode command line tools first: xcode-select --install" ;;
+    nixos) die "git/curl missing on NixOS: nix-shell -p git curl --run '$0'" ;;
+  esac
+  pkg_refresh "$os"
+  pkg_install "$os" "${missing[@]}"
+}
+
+# On NixOS the flake and dotfiles live in /etc/nixos (v1 layout), owned by you.
+ensure_dir_owned() {
+  local dir=$1
+  [ -d "$dir" ] && [ -w "$dir" ] && return 0
+  [ -w "$(dirname "$dir")" ] && return 0
+  as_root mkdir -p "$dir"
+  as_root chown "$(id -u):$(id -g)" "$dir"
+}
+
+# Set the preset in a host file (new hosts, or when --preset is given).
+set_preset() {
+  local file="$1/hosts/$2/default.nix" preset=$3
+  if grep -q '^  preset = ' "$file"; then
+    run_cmd sed -i.bak "s|^  preset = \"[a-z]*\";|  preset = \"$preset\";|" "$file"
+  else # templates like MolniPC have no preset line: add one after `os = ...;`
+    run_cmd sed -i.bak "s|^\(  os = .*;\)$|\1\n  preset = \"$preset\";|" "$file"
+  fi
+  run_cmd rm -f "$file.bak"
+}
+
+main() {
+  parse_args "$@"
+  [ "$(id -u)" != 0 ] || die "run molnios.sh as your normal user - it uses sudo only where needed"
+
+  local os system user lshared flake shared media
+  os=$(detect_os)
+  system=$(detect_system)
+  user=$(id -un)
+  HOST=${HOST:-$(hostname -s 2>/dev/null || hostname)}
+  lshared="$HOME/.local/share/molnios"
+  if [ "$os" = nixos ]; then
+    flake=${MOLNI_FLAKE:-/etc/nixos/molnixos}
+    shared=${MOLNI_SHARED:-/etc/nixos/shared}
+  else
+    flake=${MOLNI_FLAKE:-$lshared/molnixos}
+    shared=${MOLNI_SHARED:-$lshared/shared}
+  fi
+  media="$lshared/molnios-media/wallpapers"
+
+  printf '\e[38;5;213mMolniOS installer v2 by\e[0m \e[38;5;171mal1h3n\e[0m\n'
+  info "os=$os system=$system user=$user host=$HOST preset=${PRESET:-from host file}"
+  [ "$DRY_RUN" = 1 ] && warn "dry run: nothing will be changed"
+
+  prerequisites "$os"
+
+  # ── No nix at all ────────────────────────────────────────────────────────
+  if [ "$PRESET" = native ]; then
+    [ "$os" = nixos ] && die "--preset native makes no sense on NixOS"
+    repo_sync molnixos "$flake"
+    repo_sync molnios-shared "$shared"
+    [ "$PHOTOS" = 0 ] || media_sync "$media" molnios-media-static
+    [ "$VIDEOS" = 0 ] || media_sync "$media" molnios-media-dynamic
+    confirm "Install the $(host_template "$os") package lists and symlinks without nix?" || exit 0
+    fallback_apply "$flake" "$(host_template "$os")" "$os" "$shared"
+    login_shell
+    ok "done (native preset). Run again with --preset nix any time to switch to nix."
     exit 0
+  fi
+
+  # ── With nix ─────────────────────────────────────────────────────────────
+  nix_install "$os"
+  ensure_dir_owned "$flake"
+  ensure_dir_owned "$shared"
+  repo_sync molnixos "$flake"
+  repo_sync molnios-shared "$shared"
+  [ "$PHOTOS" = 0 ] || media_sync "$media" molnios-media-static
+  [ "$VIDEOS" = 0 ] || media_sync "$media" molnios-media-dynamic
+
+  local new=0
+  [ -f "$flake/hosts/$HOST/default.nix" ] || new=1
+  if [ "$UPDATE" = 1 ] && [ "$new" = 1 ]; then
+    die "--update: no hosts/$HOST yet - run without --update first"
+  fi
+  host_ensure "$flake" "$HOST" "$os" "$system" "$user"
+  if [ -n "$PRESET" ]; then
+    set_preset "$flake" "$HOST" "$PRESET"
+    run_cmd git -C "$flake" add "hosts/$HOST"
+  fi
+
+  if [ "$FLAKE_UPDATE" = 1 ]; then
+    info "updating flake inputs"
+    run_cmd nixf flake update --flake "$flake"
+  else
+    # Adds inputs that are missing from flake.lock; changes nothing else.
+    run_cmd nixf flake lock "$flake"
+  fi
+
+  # A dry run does not really create a new host, so read its template instead.
+  local info_host=$HOST
+  [ "$DRY_RUN" = 1 ] && [ "$new" = 1 ] && info_host=$(host_template "$os")
+
+  if [ "$DRY_RUN" != 1 ] || [ "$new" = 0 ]; then
+    info "what goes where on $HOST:"
+    # shellcheck disable=SC2016 # a nix expression, not shell
+    host_value "$flake" "$info_host" 'h: builtins.concatStringsSep "\n" (
+      [ "  preset:  ${h.preset}" ]
+      ++ builtins.attrValues (builtins.mapAttrs (k: v: "  native ${k}: ${toString (if builtins.isList v then v else builtins.attrNames v)}") h.native)
+      ++ map (s: "  skipped: ${s}") h.skipped)'
+    echo
+  fi
+  [ "$new" = 0 ] || confirm "hosts/$HOST is new - review $flake/hosts/$HOST/default.nix now if you like. Continue?" || exit 0
+
+  native_sync "$flake" "$info_host" "$os"
+  apply_nix "$flake" "$HOST" "$os" "$user"
+  [ "$os" = nixos ] || [ "$os" = darwin ] || login_shell
+
+  if [ "$GC" = 1 ]; then
+    info "collecting garbage"
+    run_cmd nix-collect-garbage -d
+  fi
+  if [ "$DRY_RUN" = 1 ]; then
+    ok "dry run finished - nothing was changed."
+    return 0
+  fi
+  ok "MolniOS is installed on $HOST ($os)."
+  echo "   Edit dotfiles in $shared - changes apply immediately (symlinks)."
+  echo "   Edit $flake/hosts/$HOST/default.nix, then run: molnios.sh --update"
+  [ "$REBOOT" = 0 ] || as_root reboot
 }
 
-if $DEBUG;then
-    echo -e "${BLUE}MolniOS: Debug mode enabled.${RESET}"
-    echo -e "File name - $0. Repositores: shared dotfiles repo - $SHARED_REPO,\nshared wallpaper repo (video) - $SHARED_MEDIA_DYNAMIC_REPO,\nshared static wallpaper repo - $SHARED_MEDIA_STATIC_REPO."
-    echo -e "Current OS: $OS"
-    echo -e "Testing (you should see colorful text): ${FINISH}this is a green text${RESET}, ${RED}whereas this is a red one${RESET}."
-    echo -e "Current user: $USER, directory - ${CURRENT_DIR}, shared path - $SHARED_PATH."
-    if ping -q -c 1 -W 1 8.8.8.8 >/dev/null;then
-        echo -e "Internet: ${GREEN}working${RESET}."
-    else
-        echo -e "Internet: ${RED}not working${RESET}."
-    fi
-    if exists git;then
-        echo -e "Git: ${FINISH}existing.${RESET}"
-    else
-        echo -e "${RED}Git: NOT EXISTING!${RESET}"
-    fi
-    echo -e "${BLUE}MolniOS: End of debug.${RESET}"
-fi
-
-if [ $OS = "nix" ];then
-    if $FRESH_INSTALL;then
-        rm -f /etc/nixos/*configuration.nix
-        nixos-generate-config
-    fi
-    if [ $BACKUPS != false ];then
-        backup /etc/nixos
-    fi
-fi
-
-if $UPDATE;then
-    update
-fi
-
-if $REMOVE;then
-    remove
-fi
-
-install(){
-    git config --global http.followRedirects true
-    if [ $OS = "nix" ];then
-        _repo $SHARED_REPO $SHARED_PATH
-        mkdir -p $SHARED_MEDIA_PATH
-        _repo $SHARED_REPO_NIX $SHARED_NIX_PATH
-        media
-        symlinks
-
-        if [ -d "$SHARED_PATH" ]; then
-            chown -R $USER:users "$SHARED_PATH"
-        fi
-        if [ -d "$SHARED_NIX_PATH" ]; then
-            chown -R $USER:users "$SHARED_NIX_PATH"
-        fi
-
-        mkdir -p $USER_HOME/.local/state/nix/profiles
-        mkdir -p /nix/var/nix/profiles/per-user/al1h3n
-        chown -R $USER:users $USER_HOME/.local
-        chown -R $USER:users /nix/var/nix/profiles/per-user/al1h3n
-
-        mkdir -p /$USER_HOME/.config/dconf
-        mkdir -p $USER_HOME/Screenshots
-        chown -R $USER:users $USER_HOME
-        chmod 700 $USER_HOME
-
-        cp -r /etc/nixos/hardware-configuration.nix $SHARED_NIX_PATH
-        git -C $SHARED_NIX_PATH add -f hardware-configuration.nix
-        git -C $SHARED_NIX_PATH -c user.email="molnios@local" -c user.name="MolniOS" commit -m "add hardware-configuration.nix"
-        git -C $SHARED_NIX_PATH update-index --assume-unchanged hardware-configuration.nix
-        git -C $SHARED_NIX_PATH update-index --assume-unchanged configuration.nix
-
-        # if [ $FRESH_INSTALL = true ];then
-        #     find $USER_HOME/.config -name "*.backup" -delete
-        # fi
-
-        cd $SHARED_PATH&&git add .
-        if [ $PROMPT = true ];then
-            _pause "Adjust your modules configuration now."
-        fi
-
-        if [ $FLAKE_UPDATE != false ];then
-            flake_update --flake "$SHARED_NIX_PATH" || exit 1
-        fi
-
-        if [ $ONLY_HOME != false ];then
-            # --upgrade-all only works on non-flake systems. For flake-based systems use "nix flake update" first.
-            # ! Dirty git tree - isn't a problem. It happens if you don't commit changes.
-            home-manager switch --impure --flake $SHARED_NIX_PATH#main
-        else
-            nixos-rebuild switch --impure --flake $SHARED_NIX_PATH#main
-        fi
-        sh $L_PATH/scripts/reloadus.sh
-        # qt5ct/qt6ct config is owned by molnixos home/dots/ui.nix (seeded once,
-        # then writable so the GUI and Noctalia palette keep working).
-        # Do not write it here: it raced the rebuild, pointed at a
-        # non-gcrooted breeze store path that nix-collect-garbage -d below
-        # deleted, and dropped the [Fonts] section.
-        nix-store --optimise
-        return 0
-    elif [ $OS = "arch" ];then
-        rm -rf /tmp/paru*
-        backup $ENV_FILE
-        packages_p
-    elif [ $OS = "debian" ];then
-        packages_apt
-    elif [ $OS = "alpine" ];then
-        packages_apk
-    fi
-    if [ $OS != "mac" ];then
-        _repo $SHARED_REPO $SHARED_PATH
-        media
-        symlinks
-        dots_backup
-        # icons_install
-        font_install
-        cursor
-
-        env_add "SHARED_PATH=$SHARED_PATH"
-        env_add "SHARED_MEDIA_PATH=$SHARED_MEDIA_PATH"
-        env_add "L_PATH=~/.local/share/molnios"
-        file "raw.githubusercontent.com/al1h3n/sweeper/refs/heads/main/sweeper.sh" "/usr/local/bin/sweeper/sweeper.sh"
-        file "raw.githubusercontent.com/al1h3n/sweeper/refs/heads/main/sweeper.service" "/etc/systemd/system/sweeper.service"
-        autolaunch sweeper&&rm /etc/systemd/system/sweeper.service&&cd $CURRENT_DIR&&echo -e "${GREEN}Sweeper was added to autolaunch!${RESET}"
-        timedatectl set-local-rtc 1
-    else
-        packages_b
-        _repo $SHARED_REPO $SHARED_PATH
-        media
-        _repo $SHARED_REPO_MAC $SHARED_MAC_PATH
-
-        _pause "Adjust your configuration now."
-        darwin-rebuild switch --impure --flake $SHARED_MAC_PATH#main
-    fi
-}
-
-# 3. Actual start.
-echo -e "\033[38;5;213mMolniOS Downloader by\033[0m \033[38;5;171mal1h3n${RESET}"
-echo You must have git pre-installed before launching the script.
-echo -e "${GREEN}=========================================="
-echo -e "    STARTING SYSTEM PRE-INSTALLATION..      "
-echo -e "==========================================${RESET}"
-echo -e "Pay attention that every OS needs to be configured ${RED}after${RESET} the installation (with drivers)"'!'
-
-# 3.1. Default action.
-install
-
-if [[ $NO_NIX != true && $NIX_INSTALLED != false && $COLLECT_GARBAGE != false ]];then
-    nix-collect-garbage -d
-fi
-
-echo -e "${FINISH}==========================================${RESET}"
-echo -e "${FINISH}      PRE-INSTALLATION COMPLETE!           ${RESET}"
-echo -e "${FINISH}==========================================${RESET}"
-echo -e "               ...now configure what you need..."
-
-if [ $REBOOT != false ];then
-    reboot
-fi
-
-exit 0
+main "$@"

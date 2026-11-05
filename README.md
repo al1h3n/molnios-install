@@ -38,15 +38,50 @@ This project represents a complete overhaul of the Wayland experience, designed 
 
 ## ✅ Installation
 
-Just type any of these commands:
+One script for **NixOS, macOS, Arch, Debian and Alpine** (and derivatives:
+Manjaro, EndeavourOS, CachyOS, Ubuntu, Mint...). Run it as your normal user;
+it asks for `sudo` only where it must.
 
-```
-git clone --depth=1 --filter=blob:none https://github.com/al1h3n/molnios-install
-git clone --depth=1 --filter=blob:none https://gitlab.com/al1h3n/molnios-install
-git clone --depth=1 --filter=blob:none https://codeberg.org/al1h3n/molnios-install
+```bash
+git clone --depth=1 https://github.com/al1h3n/molnios-install   # or gitlab.com / codeberg.org
+molnios-install/molnios.sh
 ```
 
-<!-- > ## PLEASE, DON'T USE THIS WITHOUT -f FLAG WHEN INSTALLING (or it won't properly work, known bug) -->
+| OS | Before running | What the script does |
+| :--- | :--- | :--- |
+| NixOS | nothing | `nixos-rebuild switch` with hosts/MolniPC as the template |
+| macOS | `xcode-select --install` | installs nix + Homebrew (nix-homebrew), `darwin-rebuild switch` |
+| Arch | nothing | nix, pacman/AUR packages nix cannot do well, system-manager, Home Manager |
+| Debian/Ubuntu | nothing | nix, apt packages, system-manager, Home Manager |
+| Alpine | `apk add bash git curl` | nix from apk (OpenRC), apk packages, Home Manager |
+
+### Presets: what to do when nix cannot install something
+```bash
+molnios.sh                    # --preset nix: nix wherever it works (default)
+molnios.sh --preset hybrid    # GUI apps from the distro package manager too
+molnios.sh --preset native    # no nix at all: distro packages + plain symlinks
+```
+
+### Useful flags
+```bash
+molnios.sh --dry-run          # show every command, change nothing
+molnios.sh --update           # pull the repos and apply again
+molnios.sh -fu                # also update all flake inputs
+molnios.sh -dp -dv            # download photo / video wallpapers (~711 MiB / ~2.1 GiB)
+molnios.sh --help
+```
+
+How it works, the per-OS matrix and the roadmap:
+[molnixos/docs/PLAN.md](https://github.com/al1h3n/molnixos/blob/main/docs/PLAN.md).
+The previous installer is kept in [`deprecated/v1/`](deprecated/v1/).
+
+### Tests
+```bash
+nix run nixpkgs#bats -- tests/                             # unit tests (no root, no network)
+shellcheck -x -s bash molnios.sh lib/*.sh
+sudo tests/e2e.sh ../molnixos ../molnios-shared            # real install, disposable machines only
+```
+
 ## 🛠️ The Tech Stack
 
 | Category       | Application(s)                                                                                                                                                                                  | Description                                                                                                                                                                                                                                                                                            |
