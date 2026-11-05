@@ -1,8 +1,10 @@
 # host.sh - make sure molnixos has a hosts/<hostname>/ for this machine.
 #
 # A new machine gets a copy of hosts/example-<os>/ (or MolniPC for NixOS) with
-# `user` and `system` filled in. Flakes only see files git tracks, so the new
-# folder is `git add`-ed (not committed: you can still review and commit it).
+# `system` and `users = [ "<you>" ];` filled in. A new person gets
+# users/<login>.nix from users/_template.nix - the file NAME is the login, so
+# no user name is written anywhere else. Flakes only see files git tracks, so
+# new files are `git add`-ed (not committed: review and commit them yourself).
 
 # host_template <os> - which host folder a new machine starts from.
 host_template() {
@@ -11,6 +13,36 @@ host_template() {
     darwin) echo ManiacPC ;;
     *) echo "example-$1" ;;
   esac
+}
+
+# host_set <file> <key> <nix value> - set `  key = value;` in a host file,
+# or add it after the `os = ...;` line when the file has no such key.
+host_set() {
+  local file=$1 key=$2 value=$3
+  if [ "${DRY_RUN:-0}" = 1 ]; then
+    printf '%s[dry-run]%s set %s = %s; in %s\n' "$YELLOW" "$RESET" "$key" "$value" "$file"
+    return 0
+  fi
+  # awk, not sed: macOS sed cannot insert a line with \n.
+  if grep -q "^  $key = " "$file"; then
+    awk -v k="$key" -v v="$value" '$0 ~ "^  " k " = " { print "  " k " = " v ";"; next } { print }' "$file" >"$file.tmp"
+  else
+    awk -v k="$key" -v v="$value" '{ print } /^  os = .*;/ && !done { print "  " k " = " v ";"; done = 1 }' "$file" >"$file.tmp"
+  fi
+  mv "$file.tmp" "$file"
+}
+
+# user_ensure <flake dir> <login> - users/<login>.nix, from the template.
+user_ensure() {
+  local flake=$1 user=$2
+  if [ -f "$flake/users/$user.nix" ]; then
+    ok "using existing users/$user.nix"
+    return 0
+  fi
+  [ -f "$flake/users/_template.nix" ] || die "no users/_template.nix in $flake"
+  info "creating users/$user.nix (your apps, profiles and dotfiles)"
+  run_cmd cp "$flake/users/_template.nix" "$flake/users/$user.nix"
+  run_cmd git -C "$flake" add "users/$user.nix"
 }
 
 # host_ensure <flake dir> <host> <os> <system> <user>
@@ -29,11 +61,12 @@ host_ensure() {
   run_cmd cp -r "$flake/hosts/$template" "$dir"
   # Plain `key = "value";` lines, so sed is enough (and easy to review).
   run_cmd sed -i.bak \
-    -e "s|^\(  user = \)\"[^\"]*\";|\1\"$user\";|" \
     -e "s|^\(  system = \)\"[^\"]*\";|\1\"$system\";|" \
     -e "1s|^# [^ ]* - .*|# $host - created by molnios.sh from hosts/$template.|" \
     "$dir/default.nix"
   run_cmd rm -f "$dir/default.nix.bak" "$dir/hardware-configuration.nix"
+  # Only you on this machine (without the line: every user in users/).
+  host_set "$dir/default.nix" users "[ \"$user\" ]"
 
   if [ "$os" = nixos ]; then
     # The one file that must come from this exact machine.
@@ -53,6 +86,12 @@ host_ensure() {
 # No jq needed: nix prints the lines itself.
 host_value() {
   nixf eval --raw "$1#lib.hosts.\"$2\"" --apply "$3"
+}
+
+# user_value <flake> <host> <login> <field> <default> - a per-user value
+# (e.g. dotfiles.repo), or the default when the user is not on that host yet.
+user_value() {
+  host_value "$1" "$2" "h: toString ((h.perUser.\"$3\" or { }).$4 or \"$5\")" 2>/dev/null || printf '%s' "$5"
 }
 
 # host_list <flake> <host> <attr> <key> - one list from the host info, one per line.

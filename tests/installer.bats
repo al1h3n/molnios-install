@@ -98,7 +98,7 @@ osrelease() { printf '%s\n' "$@" >"$TMP/os-release"; export MOLNI_OS_RELEASE="$T
 }
 
 # ── host_ensure ──────────────────────────────────────────────────────────
-@test "host_ensure: copies the template and fills user/system" {
+@test "host_ensure: copies the template, fills system and users" {
   flake="$TMP/flake"
   mkdir -p "$flake/hosts/example-arch"
   cat >"$flake/hosts/example-arch/default.nix" <<'EOF'
@@ -106,20 +106,64 @@ osrelease() { printf '%s\n' "$@" >"$TMP/os-release"; export MOLNI_OS_RELEASE="$T
 {
   os = "arch";
   system = "x86_64-linux";
-  user = "molni";
   preset = "nix";
 }
 EOF
   git -C "$flake" init -q
   host_ensure "$flake" mybox arch aarch64-linux alice
   f="$flake/hosts/mybox/default.nix"
-  grep -q '^  user = "alice";' "$f"
+  grep -q '^  users = \[ "alice" \];' "$f"
   grep -q '^  system = "aarch64-linux";' "$f"
   head -1 "$f" | grep -q '^# mybox - created by molnios.sh from hosts/example-arch.'
-  [ ! -e "$f.bak" ]
+  [ ! -e "$f.bak" ] && [ ! -e "$f.tmp" ]
   git -C "$flake" diff --cached --name-only | grep -q '^hosts/mybox/default.nix$'
   # The template itself is untouched.
-  grep -q '^  user = "molni";' "$flake/hosts/example-arch/default.nix"
+  ! grep -q users "$flake/hosts/example-arch/default.nix"
+}
+
+@test "host_set: replaces an existing key, inserts a missing one after os" {
+  printf '{\n  os = "arch";\n  preset = "nix";\n  system = "x";\n}\n' >"$TMP/h.nix"
+  host_set "$TMP/h.nix" preset '"hybrid"'
+  host_set "$TMP/h.nix" users '[ "bob" ]'
+  [ "$(sed -n 2,4p "$TMP/h.nix" | tr -d ' ')" = "$(printf 'os="arch";\nusers=["bob"];\npreset="hybrid";')" ]
+  [ "$(grep -c preset "$TMP/h.nix")" = 1 ]
+}
+
+@test "user_ensure: users/<login>.nix from the template, only once" {
+  flake="$TMP/flake"
+  mkdir -p "$flake/users"
+  echo '{ profiles = [ "base" ]; }' >"$flake/users/_template.nix"
+  git -C "$flake" init -q
+  user_ensure "$flake" carol
+  grep -q base "$flake/users/carol.nix"
+  echo '{ mine = true; }' >"$flake/users/carol.nix"
+  user_ensure "$flake" carol
+  grep -q mine "$flake/users/carol.nix" # an existing user file is never replaced
+}
+
+@test "repo_url: MolniOS names, owner/repo and full URLs" {
+  [ "$(repo_url molnixos)" = "https://github.com/al1h3n/molnixos" ]
+  [ "$(repo_url bob/dots)" = "https://github.com/bob/dots" ]
+  [ "$(repo_url https://example.org/x.git)" = "https://example.org/x.git" ]
+  MOLNI_GIT_HOST=https://gitlab.com MOLNI_GIT_BASE=https://gitlab.com/al1h3n
+  [ "$(repo_url molnixos)" = "https://gitlab.com/al1h3n/molnixos" ]
+  [ "$(repo_url bob/dots)" = "https://gitlab.com/bob/dots" ]
+}
+
+@test "arch never does a partial upgrade (-Sy without -u)" {
+  DRY_RUN=1 run pkg_install arch fish
+  [[ "$output" == *"pacman -Syu --needed --noconfirm fish"* ]]
+  DRY_RUN=1 run pkg_refresh arch
+  [[ "$output" != *"pacman -Sy "* ]]
+}
+
+@test "system_upgrade: upgrades every distro package" {
+  DRY_RUN=1 run system_upgrade arch
+  [[ "$output" == *"pacman -Syu --noconfirm"* ]]
+  DRY_RUN=1 run system_upgrade debian
+  [[ "$output" == *"apt-get update"* && "$output" == *"apt-get upgrade -y"* && "$output" == *"force-confold"* ]]
+  DRY_RUN=1 run system_upgrade alpine
+  [[ "$output" == *"apk upgrade"* ]]
 }
 
 @test "host_ensure: an existing host is left alone" {
@@ -162,6 +206,28 @@ EOF
   [ "$(readlink "$HOME/.config/b")" = /elsewhere ] # not ours: untouched
 }
 
+@test "templates_apply: placeholders become this user's paths" {
+  shared="$TMP/shared"
+  mkdir -p "$shared/config"
+  printf 'theme=@HOME@/.config/t.qbtheme\nuser=@USER@ dots=@SHARED@\n' >"$shared/config/q.ini.in"
+  ln -s /old "$HOME/q.conf" # a link from before it was a template
+  printf 'q.conf\tconfig/q.ini.in\n@SHARED@/out.css\tconfig/q.ini.in\n' >"$TMP/templates.tsv"
+  templates_apply "$TMP/templates.tsv" "$shared"
+  [ ! -L "$HOME/q.conf" ]
+  grep -qx "theme=$HOME/.config/t.qbtheme" "$HOME/q.conf"
+  grep -qx "user=$(id -un) dots=$shared" "$HOME/q.conf"
+  [ -f "$shared/out.css" ]
+}
+
+@test "links_apply: @HOME@ and @SHARED@ in exported lists" {
+  shared="$TMP/shared"
+  mkdir -p "$shared/config"
+  echo x >"$shared/config/a"
+  printf '@HOME@/.config/a\t@SHARED@/config/a\n' >"$TMP/links.tsv"
+  links_apply "$TMP/links.tsv" "$shared" >/dev/null
+  [ "$(readlink "$HOME/.config/a")" = "$shared/config/a" ]
+}
+
 # ── media ────────────────────────────────────────────────────────────────
 @test "media_sync: each repo in its own folder, top-level dirs linked" {
   # Fake remote repos, so no network is needed.
@@ -195,4 +261,5 @@ EOF
   run bash "$ROOT/molnios.sh" --help
   [ "$status" -eq 0 ]
   [[ "$output" == *"--preset native"* ]]
+  [[ "$output" == *"--locked"* ]]
 }

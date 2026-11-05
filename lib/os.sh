@@ -76,7 +76,9 @@ _pkg_install_batch() {
   local os=$1
   shift
   case "$os" in
-    arch) as_root pacman -S --needed --noconfirm "$@" ;;
+    # -Syu, never -Sy alone: installing on top of a refreshed but not upgraded
+    # system is a partial upgrade, which Arch does not support.
+    arch) as_root pacman -Syu --needed --noconfirm "$@" ;;
     # confdef/confold: keep config files that already exist instead of asking.
     # The nix installer adds a "# Nix" block to /etc/zsh/zshrc, so a later
     # `apt-get install zsh` otherwise stops at an interactive conffile prompt.
@@ -88,13 +90,35 @@ _pkg_install_batch() {
   esac
 }
 
-# Refresh the package index once before installing.
+# Refresh the package index once before installing. (Arch: pacman -Syu in
+# _pkg_install_batch does it, a lone -Sy would invite a partial upgrade.)
 pkg_refresh() {
   case "$1" in
-    arch) as_root pacman -Sy --noconfirm ;;
     debian) as_root apt-get update ;;
     alpine) as_root apk update ;;
     *) : ;;
+  esac
+}
+
+# system_upgrade <os> - upgrade EVERY distro package to the latest version
+# (molnios.sh --update). nix packages are updated by `nix flake update`.
+system_upgrade() {
+  case "$1" in
+    arch)
+      as_root pacman -Syu --noconfirm
+      local helper
+      for helper in paru yay; do
+        if exists "$helper"; then run_cmd "$helper" -Sua --noconfirm; break; fi
+      done
+      ;;
+    debian)
+      as_root apt-get update
+      as_root env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+        -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold
+      ;;
+    alpine) as_root apk update && as_root apk upgrade ;;
+    darwin) : ;; # Homebrew: nix-darwin upgrades it on switch (onActivation.upgrade)
+    nixos) : ;;  # everything is nix
   esac
 }
 
@@ -104,7 +128,7 @@ aur_install() {
   local helper
   for helper in paru yay; do
     if exists "$helper"; then
-      run_cmd "$helper" -S --needed --noconfirm "$@"
+      run_cmd "$helper" -Syu --needed --noconfirm "$@"
       return
     fi
   done

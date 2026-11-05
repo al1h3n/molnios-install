@@ -6,6 +6,7 @@
 #   native-<pacman|aur|apt|apk|brew|cask>.txt   packages, one per line
 #   services-<systemd|openrc>.txt               services to enable
 #   links.tsv                                   "<target in $HOME><TAB><source in molnios-shared>"
+#   templates.tsv                               "<target><TAB><template>" (@HOME@ ... filled in)
 # So the package lists and symlinks are the very same data the nix presets
 # use - just applied with the distro package manager and `ln -s`.
 
@@ -41,10 +42,40 @@ fallback_apply() {
   fi
 
   links_apply "$dir/links.tsv" "$shared"
+  templates_apply "$dir/templates.tsv" "$shared"
   if [ -s "$dir/skipped.txt" ]; then
     warn "these apps need nix on $os and were skipped:"
     sed 's/^/       /' "$dir/skipped.txt" >&2
   fi
+}
+
+# fill <path> <shared dir> - @HOME@/@SHARED@ -> real paths; relative = in $HOME / in shared.
+_fill_target() { local t=${1//@SHARED@/$2}; t=${t//@HOME@/$HOME}; case "$t" in /*) echo "$t" ;; *) echo "$HOME/$t" ;; esac; }
+_fill_source() { local s=${1//@SHARED@/$2}; s=${s//@HOME@/$HOME}; case "$s" in /*) echo "$s" ;; *) echo "$2/$s" ;; esac; }
+
+# A value safe inside sed's s|...|VALUE| (escapes | & and backslash).
+esc() { printf '%s' "$1" | sed 's/[|&\\]/\\&/g'; }
+
+# templates_apply <templates.tsv> <shared dir> - render @HOME@-style
+# placeholders, same names as molnixos's molni.templates.
+templates_apply() {
+  local tsv=$1 shared=$2 target src
+  [ -f "$tsv" ] || return 0
+  while IFS=$'\t' read -r target src || [ -n "$target" ]; do
+    [ -n "$target" ] || continue
+    target=$(_fill_target "$target" "$shared")
+    src=$(_fill_source "$src" "$shared")
+    [ -f "$src" ] || { warn "template missing, skipped: $src"; continue; }
+    if [ "${DRY_RUN:-0}" = 1 ]; then
+      printf '%s[dry-run]%s render %s -> %s\n' "$YELLOW" "$RESET" "$src" "$target"
+      continue
+    fi
+    mkdir -p "$(dirname "$target")"
+    [ -L "$target" ] && rm -f "$target"
+    sed -e "s|@HOME@|$(esc "$HOME")|g" -e "s|@USER@|$(esc "$(id -un)")|g" \
+      -e "s|@LSHARED@|$(esc "$HOME/.local/share/molnios")|g" -e "s|@SHARED@|$(esc "$shared")|g" \
+      -e "s|@MEDIA@|$(esc "$HOME/.local/share/molnios/molnios-media/wallpapers")|g" "$src" >"$target"
+  done <"$tsv"
 }
 
 # links_apply <links.tsv> <shared dir> - plain symlinks, with backups.
@@ -52,10 +83,10 @@ fallback_apply() {
 # symlink is simply replaced.
 links_apply() {
   local tsv=$1 shared=$2 target src
-  while IFS=$'\t' read -r target src; do
+  while IFS=$'\t' read -r target src || [ -n "$target" ]; do
     [ -n "$target" ] || continue
-    case "$src" in /*) ;; *) src="$shared/$src" ;; esac
-    target="$HOME/$target"
+    src=$(_fill_source "$src" "$shared")
+    target=$(_fill_target "$target" "$shared")
     if [ ! -e "$src" ]; then
       warn "link source missing, skipped: $src"
       continue

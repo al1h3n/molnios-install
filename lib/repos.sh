@@ -4,15 +4,29 @@
 # updates. v2 keeps .git (shallow): updating is a plain `git pull`, and the
 # molnixos flake *needs* git (flakes only see tracked files).
 #
-# Mirrors: MOLNI_GIT_BASE=https://gitlab.com/al1h3n or https://codeberg.org/al1h3n
+# Mirrors: MOLNI_GIT_HOST=https://gitlab.com (or https://codeberg.org).
 
-MOLNI_GIT_BASE=${MOLNI_GIT_BASE:-https://github.com/al1h3n}
+MOLNI_GIT_HOST=${MOLNI_GIT_HOST:-https://github.com}
+MOLNI_GIT_BASE=${MOLNI_GIT_BASE:-$MOLNI_GIT_HOST/al1h3n}
 
-# repo_sync <name> <dir> - clone if missing, fast-forward if present.
+# repo_url <name | owner/repo | URL>
+#   molnixos          -> $MOLNI_GIT_BASE/molnixos   (a MolniOS repo)
+#   someone/dotfiles  -> $MOLNI_GIT_HOST/someone/dotfiles
+#   https://...       -> as is
+repo_url() {
+  case "$1" in
+    *://* | git@*) echo "$1" ;;
+    */*) echo "$MOLNI_GIT_HOST/$1" ;;
+    *) echo "$MOLNI_GIT_BASE/$1" ;;
+  esac
+}
+
+# repo_sync <repo> <dir> - clone if missing, fast-forward if present.
 # Local edits are never thrown away: if the pull cannot fast-forward, it stops
 # with a message instead.
 repo_sync() {
-  local name=$1 dir=$2 url="$MOLNI_GIT_BASE/$1"
+  local name=$1 dir=$2 url
+  url=$(repo_url "$1")
   if [ -d "$dir/.git" ]; then
     info "updating $name"
     run_cmd git -C "$dir" pull --ff-only ||

@@ -62,11 +62,20 @@ molnios.sh --preset hybrid    # GUI apps from the distro package manager too
 molnios.sh --preset native    # no nix at all: distro packages + plain symlinks
 ```
 
+It creates `molnixos/users/<your login>.nix` (your profiles, apps and dotfiles)
+and `molnixos/hosts/<hostname>/` (the machine) for you; edit them any time.
+
+### Updating
+```bash
+molnios --update              # EVERYTHING to the latest version: installer, repos,
+                              # flake inputs, all distro packages, then apply
+```
+After the first run `molnios` is on your PATH (also `u` / `ml` in fish and zsh).
+Every run takes the latest flake inputs; add `--locked` to keep `flake.lock`.
+
 ### Useful flags
 ```bash
 molnios.sh --dry-run          # show every command, change nothing
-molnios.sh --update           # pull the repos and apply again
-molnios.sh -fu                # also update all flake inputs
 molnios.sh -dp -dv            # download photo / video wallpapers (~711 MiB / ~2.1 GiB)
 molnios.sh --help
 ```

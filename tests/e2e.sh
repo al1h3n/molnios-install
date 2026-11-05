@@ -48,20 +48,30 @@ copy_repo() { # <from> <to>
 }
 copy_repo "$src_flake" "$lshared/molnixos"
 copy_repo "$src_shared" "$lshared/shared"
+copy_repo "$here" "$lshared/molnios-install" # what the `molnios` command runs
 
-# A small host: a real switch, but minutes instead of an hour of downloads.
+# A template, to check per-user rendering (@HOME@ -> this user's home).
+printf 'home=@HOME@ user=@USER@\n' >"$lshared/shared/config/e2e.in"
+
+# A small host and its user: a real switch, but minutes instead of an hour.
+# The user name is only the FILE name users/$user.nix.
 mkdir -p "$lshared/molnixos/hosts/$host"
 cat >"$lshared/molnixos/hosts/$host/default.nix" <<EOF
 # e2e - created by tests/e2e.sh
 {
   os = "debian";
   system = "x86_64-linux";
-  user = "$user";
+  users = [ "$user" ];
   stateVersion = "26.05";
   preset = "nix";
-  # (no yazi: its RAR-enabled 7-zip is unfree, so not in the binary cache and
-  # compiles from source - slow, and its source host may be blocked in CI.)
-  apps = [ "cli" "nix-tools" "fish" "zsh" "shells" "fonts" "config-cleanup" ];
+  homeModules = [ { molni.templates.".config/molni-e2e.txt" = "config/e2e.in"; } ];
+}
+EOF
+# (no yazi: its RAR-enabled 7-zip is unfree, so not in the binary cache and
+# compiles from source - slow, and its source host may be blocked in CI.)
+cat >"$lshared/molnixos/users/$user.nix" <<'EOF'
+{
+  profiles = [ { apps = [ "cli" "nix-tools" "fish" "zsh" "shells" "fonts" "config-cleanup" ]; } ];
 }
 EOF
 grep -q 'ID=arch' /etc/os-release && sed -i 's/os = "debian"/os = "arch"/' "$lshared/molnixos/hosts/$host/default.nix"
@@ -83,8 +93,11 @@ chown -R "$user:" "$home"
 # ── 3. Run the installer as the user ───────────────────────────────────────
 as_user() { sudo -u "$user" -H env MOLNI_FLAKE="$lshared/molnixos" MOLNI_SHARED="$lshared/shared" "$@"; }
 start=$(date +%s)
+# Sandboxes that block GitHub tarballs cannot `nix flake update`: keep the lock.
+flags=(--yes -H "$host")
+[ "${MOLNI_GITIFY:-0}" = 1 ] && flags+=(--locked)
 # </dev/null: a prompt that slipped through must fail the test, not hang it.
-as_user bash "$here/molnios.sh" --yes -H "$host" </dev/null
+as_user bash "$here/molnios.sh" "${flags[@]}" </dev/null
 first=$(($(date +%s) - start))
 
 # ── 4. Check the result ────────────────────────────────────────────────────
@@ -101,11 +114,13 @@ check "registry pkgs installed (eza, nh from nix)" \
   test -x "$home/.nix-profile/bin/eza" -a -x "$home/.nix-profile/bin/nh"
 check "host.json summary written" grep -q '"os":"debian"\|"os":"arch"' "$cfg/molnios/host.json"
 check "fish/zsh are listed as native in host.json" grep -q '"fish":"native"' "$cfg/molnios/host.json"
+check "template rendered with this user's home" grep -qx "home=$home user=$user" "$cfg/molni-e2e.txt"
+check "molnios command on PATH runs the installer" "$home/.nix-profile/bin/molnios" --help
 check "login shell is the distro's fish" test "$(getent passwd "$user" | cut -d: -f7)" = /usr/bin/fish
 
 # ── 5. Second run = update: must succeed and change nothing important ──────
 start=$(date +%s)
-check "second run (--update) succeeds" as_user bash "$here/molnios.sh" --yes --update -H "$host" </dev/null
+check "second run (--update) succeeds" as_user bash "$here/molnios.sh" "${flags[@]}" --update </dev/null
 second=$(($(date +%s) - start))
 
 echo

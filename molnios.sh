@@ -18,6 +18,8 @@
 #   instead of nix (fallback.sh).
 #
 # The old v1 installer is in deprecated/v1/.
+# Everything fetches the LATEST version by default (flake inputs, repos);
+# `--update` also upgrades every distro package. `--locked` keeps flake.lock.
 set -euo pipefail
 
 SELF=$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")
@@ -39,7 +41,7 @@ SCRIPT_DIR=$(cd "$(dirname "$SELF")" && pwd)
 
 usage() {
   cat <<EOF
-${BOLD}Usage:${RESET} $(basename "$0") [options]
+${BOLD}Usage:${RESET} $(basename "$0") [options]      (after install also just: molnios [options])
 
 ${BOLD}Presets${RESET} (what to do when nix cannot install something well):
   -p, --preset nix       nixpkgs wherever it works, distro packages only where
@@ -49,9 +51,13 @@ ${BOLD}Presets${RESET} (what to do when nix cannot install something well):
   -nn, --no-nix          same as --preset native (v1 flag).
 
 ${BOLD}Options:${RESET}
+  -u, --update           update EVERYTHING to the latest version: this
+                         installer, molnixos, your dotfiles, wallpapers, all
+                         flake inputs (nixpkgs, Home Manager...) and every
+                         distro package (pacman+AUR / apt / apk / Homebrew),
+                         then apply
+      --locked           keep flake.lock as it is (default: latest inputs)
   -H, --host NAME        host folder in molnixos/hosts (default: hostname)
-  -u, --update           pull the repos and apply again
-  -fu, --flake-update    update flake.lock (all inputs) before applying
   -dp, --download-photos static wallpapers (~711 MiB)
   -dv, --download-videos video wallpapers (~2.1 GiB)
   -cg, --collect-garbage delete old nix generations afterwards
@@ -61,16 +67,20 @@ ${BOLD}Options:${RESET}
       --nix-installer rust|classic   how to install nix (default: rust)
   -h, --help             this help
 
-${BOLD}Environment:${RESET}
-  MOLNI_GIT_BASE   mirror, e.g. https://gitlab.com/al1h3n (default: GitHub)
-  MOLNI_FLAKE      where molnixos is cloned
-  MOLNI_SHARED     where molnios-shared is cloned
+${BOLD}Who and what:${RESET} molnixos/users/<login>.nix (created for you on the first run)
+picks your profiles (gaming, dev, media...), apps and dotfiles repo;
+molnixos/hosts/<host>/ describes the machine. See molnixos/docs/PLAN.md.
 
-${BOLD}Example:${RESET} $(basename "$0") --preset hybrid -dp
+${BOLD}Environment:${RESET}
+  MOLNI_GIT_HOST   git host for all repos, e.g. https://gitlab.com (default: GitHub)
+  MOLNI_FLAKE      where molnixos is cloned
+  MOLNI_SHARED     where your dotfiles are cloned (default: from your user file)
+
+${BOLD}Examples:${RESET} $(basename "$0") --preset hybrid -dp      $(basename "$0") --update
 EOF
 }
 
-PRESET="" HOST="" UPDATE=0 FLAKE_UPDATE=0 PHOTOS=0 VIDEOS=0 GC=0 REBOOT=0
+PRESET="" HOST="" UPDATE=0 FLAKE_UPDATE=1 PHOTOS=0 VIDEOS=0 GC=0 REBOOT=0
 ASSUME_YES=0 DRY_RUN=0 NIX_INSTALLER=rust
 
 parse_args() {
@@ -80,7 +90,8 @@ parse_args() {
       -nn | --no-nix) PRESET=native ;;
       -H | --host) HOST=${2:-}; shift ;;
       -u | --update) UPDATE=1 ;;
-      -fu | --flake-update) FLAKE_UPDATE=1 ;;
+      --locked) FLAKE_UPDATE=0 ;;
+      -fu | --flake-update) FLAKE_UPDATE=1 ;; # v1 flag; latest is the default now
       -dp | --download-photos) PHOTOS=1 ;;
       -dv | --download-videos) VIDEOS=1 ;;
       -cg | --collect-garbage) GC=1 ;;
@@ -95,6 +106,29 @@ parse_args() {
   done
   case "$PRESET" in "" | nix | hybrid | native) ;; *) die "--preset must be nix, hybrid or native" ;; esac
   case "$NIX_INSTALLER" in rust | classic) ;; *) die "--nix-installer must be rust or classic" ;; esac
+}
+
+# --update: pull this installer first, and restart it if it changed, so the
+# rest of the update runs with the newest code.
+self_update() {
+  [ "${MOLNI_SELF_UPDATED:-0}" = 1 ] && return 0
+  git -C "$SCRIPT_DIR" rev-parse --git-dir >/dev/null 2>&1 || return 0
+  local before after
+  before=$(git -C "$SCRIPT_DIR" rev-parse HEAD)
+  git -C "$SCRIPT_DIR" pull --ff-only -q 2>/dev/null || { warn "installer: could not fast-forward, using this version"; return 0; }
+  after=$(git -C "$SCRIPT_DIR" rev-parse HEAD)
+  if [ "$before" != "$after" ]; then
+    info "installer updated, restarting it"
+    MOLNI_SELF_UPDATED=1 exec bash "$SCRIPT_DIR/molnios.sh" "$@"
+  fi
+}
+
+# media_if <flag> <media path> <repo> - wallpapers when asked, or when they
+# were downloaded before (so --update keeps them current).
+media_if() {
+  if [ "$1" = 1 ] || [ -d "$(dirname "$2")/repos/$3" ]; then
+    media_sync "$2" "$3"
+  fi
 }
 
 # git and curl before anything else (the official nix installer needs both).
@@ -122,22 +156,12 @@ ensure_dir_owned() {
   as_root chown "$(id -u):$(id -g)" "$dir"
 }
 
-# Set the preset in a host file (new hosts, or when --preset is given).
-set_preset() {
-  local file="$1/hosts/$2/default.nix" preset=$3
-  if grep -q '^  preset = ' "$file"; then
-    run_cmd sed -i.bak "s|^  preset = \"[a-z]*\";|  preset = \"$preset\";|" "$file"
-  else # templates like MolniPC have no preset line: add one after `os = ...;`
-    run_cmd sed -i.bak "s|^\(  os = .*;\)$|\1\n  preset = \"$preset\";|" "$file"
-  fi
-  run_cmd rm -f "$file.bak"
-}
-
 main() {
   parse_args "$@"
   [ "$(id -u)" != 0 ] || die "run molnios.sh as your normal user - it uses sudo only where needed"
+  [ "$UPDATE" = 0 ] || [ "$DRY_RUN" = 1 ] || self_update "$@"
 
-  local os system user lshared flake shared media
+  local os system user lshared flake shared media installer
   os=$(detect_os)
   system=$(detect_system)
   user=$(id -un)
@@ -145,15 +169,13 @@ main() {
   lshared="$HOME/.local/share/molnios"
   if [ "$os" = nixos ]; then
     flake=${MOLNI_FLAKE:-/etc/nixos/molnixos}
-    shared=${MOLNI_SHARED:-/etc/nixos/shared}
   else
     flake=${MOLNI_FLAKE:-$lshared/molnixos}
-    shared=${MOLNI_SHARED:-$lshared/shared}
   fi
   media="$lshared/molnios-media/wallpapers"
 
-  printf '\e[38;5;213mMolniOS installer v2 by\e[0m \e[38;5;171mal1h3n\e[0m\n'
-  info "os=$os system=$system user=$user host=$HOST preset=${PRESET:-from host file}"
+  printf '\e[38;5;213mMolniOS installer v2\e[0m\n'
+  info "os=$os system=$system user=$user host=$HOST preset=${PRESET:-from host/user file}"
   [ "$DRY_RUN" = 1 ] && warn "dry run: nothing will be changed"
 
   prerequisites "$os"
@@ -161,10 +183,12 @@ main() {
   # ── No nix at all ────────────────────────────────────────────────────────
   if [ "$PRESET" = native ]; then
     [ "$os" = nixos ] && die "--preset native makes no sense on NixOS"
+    shared=${MOLNI_SHARED:-$lshared/shared}
     repo_sync molnixos "$flake"
     repo_sync molnios-shared "$shared"
-    [ "$PHOTOS" = 0 ] || media_sync "$media" molnios-media-static
-    [ "$VIDEOS" = 0 ] || media_sync "$media" molnios-media-dynamic
+    media_if "$PHOTOS" "$media" molnios-media-static
+    media_if "$VIDEOS" "$media" molnios-media-dynamic
+    [ "$UPDATE" = 0 ] || system_upgrade "$os"
     confirm "Install the $(host_template "$os") package lists and symlinks without nix?" || exit 0
     fallback_apply "$flake" "$(host_template "$os")" "$os" "$shared"
     login_shell
@@ -174,48 +198,65 @@ main() {
 
   # ── With nix ─────────────────────────────────────────────────────────────
   nix_install "$os"
-  ensure_dir_owned "$flake"
-  ensure_dir_owned "$shared"
-  repo_sync molnixos "$flake"
-  repo_sync molnios-shared "$shared"
-  [ "$PHOTOS" = 0 ] || media_sync "$media" molnios-media-static
-  [ "$VIDEOS" = 0 ] || media_sync "$media" molnios-media-dynamic
 
+  # 1. The flake, and this machine + this person in it.
+  ensure_dir_owned "$flake"
+  repo_sync molnixos "$flake"
   local new=0
   [ -f "$flake/hosts/$HOST/default.nix" ] || new=1
-  if [ "$UPDATE" = 1 ] && [ "$new" = 1 ]; then
-    die "--update: no hosts/$HOST yet - run without --update first"
-  fi
+  [ "$UPDATE" = 0 ] || [ "$new" = 0 ] || die "--update: no hosts/$HOST yet - run without --update first"
+  user_ensure "$flake" "$user"
   host_ensure "$flake" "$HOST" "$os" "$system" "$user"
   if [ -n "$PRESET" ]; then
-    set_preset "$flake" "$HOST" "$PRESET"
+    host_set "$flake/hosts/$HOST/default.nix" preset "\"$PRESET\""
     run_cmd git -C "$flake" add "hosts/$HOST"
   fi
 
+  # 2. Latest versions of every flake input (nixpkgs, Home Manager, ...).
   if [ "$FLAKE_UPDATE" = 1 ]; then
-    info "updating flake inputs"
+    info "updating flake inputs to their latest versions"
     run_cmd nixf flake update --flake "$flake"
   else
-    # Adds inputs that are missing from flake.lock; changes nothing else.
-    run_cmd nixf flake lock "$flake"
+    run_cmd nixf flake lock "$flake" # only adds missing inputs
   fi
 
   # A dry run does not really create a new host, so read its template instead.
   local info_host=$HOST
   [ "$DRY_RUN" = 1 ] && [ "$new" = 1 ] && info_host=$(host_template "$os")
 
+  # 3. Your dotfiles (repo and folder come from your user file / profiles),
+  #    this installer (for the `molnios` command) and wallpapers.
+  local dot_repo
+  dot_repo=$(user_value "$flake" "$info_host" "$user" dotfiles.repo al1h3n/molnios-shared)
+  shared=${MOLNI_SHARED:-$(user_value "$flake" "$info_host" "$user" dotfiles.path "$lshared/shared")}
+  installer=$(host_value "$flake" "$info_host" 'h: h.installerPath' 2>/dev/null || echo "$lshared/molnios-install")
+  ensure_dir_owned "$shared"
+  repo_sync "$dot_repo" "$shared"
+  if [ "$(cd "$SCRIPT_DIR" && pwd -P)" != "$(cd "$installer" 2>/dev/null && pwd -P)" ]; then
+    repo_sync molnios-install "$installer"
+  fi
+  media_if "$PHOTOS" "$media" molnios-media-static
+  media_if "$VIDEOS" "$media" molnios-media-dynamic
+
   if [ "$DRY_RUN" != 1 ] || [ "$new" = 0 ]; then
     info "what goes where on $HOST:"
     # shellcheck disable=SC2016 # a nix expression, not shell
     host_value "$flake" "$info_host" 'h: builtins.concatStringsSep "\n" (
-      [ "  preset:  ${h.preset}" ]
-      ++ builtins.attrValues (builtins.mapAttrs (k: v: "  native ${k}: ${toString (if builtins.isList v then v else builtins.attrNames v)}") h.native)
+      [ "  users:   ${toString h.users}" "  preset:  ${h.preset}" ]
+      ++ builtins.attrValues (builtins.mapAttrs (k: v: "  native ${k}: ${toString v}") h.native)
       ++ map (s: "  skipped: ${s}") h.skipped)'
     echo
   fi
-  [ "$new" = 0 ] || confirm "hosts/$HOST is new - review $flake/hosts/$HOST/default.nix now if you like. Continue?" || exit 0
+  [ "$new" = 0 ] || confirm "New files in $flake: hosts/$HOST and users/$user.nix - review them now if you like. Continue?" || exit 0
 
+  # 4. Distro packages: everything upgraded on --update, then what nix cannot do.
+  if [ "$UPDATE" = 1 ]; then
+    info "upgrading all distro packages"
+    system_upgrade "$os"
+  fi
   native_sync "$flake" "$info_host" "$os"
+
+  # 5. Switch to the new configuration.
   apply_nix "$flake" "$HOST" "$os" "$user"
   [ "$os" = nixos ] || [ "$os" = darwin ] || login_shell
 
@@ -227,9 +268,10 @@ main() {
     ok "dry run finished - nothing was changed."
     return 0
   fi
-  ok "MolniOS is installed on $HOST ($os)."
-  echo "   Edit dotfiles in $shared - changes apply immediately (symlinks)."
-  echo "   Edit $flake/hosts/$HOST/default.nix, then run: molnios.sh --update"
+  ok "MolniOS is up to date on $HOST ($os)."
+  echo "   Dotfiles: $shared (live: edits apply immediately)."
+  echo "   Your apps/profiles: $flake/users/$user.nix   Machine: $flake/hosts/$HOST/"
+  echo "   Update everything later with: molnios --update"
   [ "$REBOOT" = 0 ] || as_root reboot
 }
 
