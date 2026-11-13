@@ -58,6 +58,11 @@ ${BOLD}Options:${RESET}
                          then apply
       --locked           keep flake.lock as it is (default: latest inputs)
   -H, --host NAME        host folder in molnixos/hosts (default: hostname)
+  -fb, --flake-branch B      use branch B of molnixos
+  -sb, --shared-branch B     use branch B of your dotfiles repo
+  -ib, --installer-branch B  use branch B of this installer
+                         (test a branch without merging it to main; later
+                         runs stay on B until you pass another, e.g. -fb main)
   -dp, --download-photos static wallpapers (~711 MiB)
   -dv, --download-videos video wallpapers (~2.1 GiB)
   -cg, --collect-garbage delete old nix generations afterwards
@@ -77,11 +82,12 @@ ${BOLD}Environment:${RESET}
   MOLNI_SHARED     where your dotfiles are cloned (default: from your user file)
 
 ${BOLD}Examples:${RESET} $(basename "$0") --preset hybrid -dp      $(basename "$0") --update
+          $(basename "$0") -u -fb feat/improvement -sb feat/improvement
 EOF
 }
 
 PRESET="" HOST="" UPDATE=0 FLAKE_UPDATE=1 PHOTOS=0 VIDEOS=0 GC=0 REBOOT=0
-ASSUME_YES=0 DRY_RUN=0 NIX_INSTALLER=rust
+ASSUME_YES=0 DRY_RUN=0 NIX_INSTALLER=rust FLAKE_BRANCH="" SHARED_BRANCH="" INSTALLER_BRANCH=""
 
 parse_args() {
   while [ $# -gt 0 ]; do
@@ -89,6 +95,9 @@ parse_args() {
       -p | --preset) PRESET=${2:-}; shift ;;
       -nn | --no-nix) PRESET=native ;;
       -H | --host) HOST=${2:-}; shift ;;
+      -fb | --flake-branch) FLAKE_BRANCH=${2:?$1 needs a branch}; shift ;;
+      -sb | --shared-branch) SHARED_BRANCH=${2:?$1 needs a branch}; shift ;;
+      -ib | --installer-branch) INSTALLER_BRANCH=${2:?$1 needs a branch}; shift ;;
       -u | --update) UPDATE=1 ;;
       --locked) FLAKE_UPDATE=0 ;;
       -fu | --flake-update) FLAKE_UPDATE=1 ;; # v1 flag; latest is the default now
@@ -108,14 +117,18 @@ parse_args() {
   case "$NIX_INSTALLER" in rust | classic) ;; *) die "--nix-installer must be rust or classic" ;; esac
 }
 
-# --update: pull this installer first, and restart it if it changed, so the
-# rest of the update runs with the newest code.
+# --update / --installer-branch: pull this installer (or move it to the
+# branch) first, and restart it if it changed, so the rest runs the new code.
 self_update() {
   [ "${MOLNI_SELF_UPDATED:-0}" = 1 ] && return 0
   git -C "$SCRIPT_DIR" rev-parse --git-dir >/dev/null 2>&1 || return 0
   local before after
   before=$(git -C "$SCRIPT_DIR" rev-parse HEAD)
-  git -C "$SCRIPT_DIR" pull --ff-only -q 2>/dev/null || { warn "installer: could not fast-forward, using this version"; return 0; }
+  if [ -n "$INSTALLER_BRANCH" ]; then
+    repo_sync molnios-install "$SCRIPT_DIR" "$INSTALLER_BRANCH"
+  else
+    git -C "$SCRIPT_DIR" pull --ff-only -q 2>/dev/null || { warn "installer: could not fast-forward, using this version"; return 0; }
+  fi
   after=$(git -C "$SCRIPT_DIR" rev-parse HEAD)
   if [ "$before" != "$after" ]; then
     info "installer updated, restarting it"
@@ -159,7 +172,7 @@ ensure_dir_owned() {
 main() {
   parse_args "$@"
   [ "$(id -u)" != 0 ] || die "run molnios.sh as your normal user - it uses sudo only where needed"
-  [ "$UPDATE" = 0 ] || [ "$DRY_RUN" = 1 ] || self_update "$@"
+  { [ "$UPDATE" = 0 ] && [ -z "$INSTALLER_BRANCH" ]; } || [ "$DRY_RUN" = 1 ] || self_update "$@"
 
   local os system user lshared flake shared media installer
   os=$(detect_os)
@@ -184,8 +197,8 @@ main() {
   if [ "$PRESET" = native ]; then
     [ "$os" = nixos ] && die "--preset native makes no sense on NixOS"
     shared=${MOLNI_SHARED:-$lshared/shared}
-    repo_sync molnixos "$flake"
-    repo_sync molnios-shared "$shared"
+    repo_sync molnixos "$flake" "$FLAKE_BRANCH"
+    repo_sync molnios-shared "$shared" "$SHARED_BRANCH"
     media_if "$PHOTOS" "$media" molnios-media-static
     media_if "$VIDEOS" "$media" molnios-media-dynamic
     [ "$UPDATE" = 0 ] || system_upgrade "$os"
@@ -201,7 +214,7 @@ main() {
 
   # 1. The flake, and this machine + this person in it.
   ensure_dir_owned "$flake"
-  repo_sync molnixos "$flake"
+  repo_sync molnixos "$flake" "$FLAKE_BRANCH"
   local new=0
   [ -f "$flake/hosts/$HOST/default.nix" ] || new=1
   [ "$UPDATE" = 0 ] || [ "$new" = 0 ] || die "--update: no hosts/$HOST yet - run without --update first"
@@ -231,9 +244,9 @@ main() {
   shared=${MOLNI_SHARED:-$(user_value "$flake" "$info_host" "$user" dotfiles.path "$lshared/shared")}
   installer=$(host_value "$flake" "$info_host" 'h: h.installerPath' 2>/dev/null || echo "$lshared/molnios-install")
   ensure_dir_owned "$shared"
-  repo_sync "$dot_repo" "$shared"
+  repo_sync "$dot_repo" "$shared" "$SHARED_BRANCH"
   if [ "$(cd "$SCRIPT_DIR" && pwd -P)" != "$(cd "$installer" 2>/dev/null && pwd -P)" ]; then
-    repo_sync molnios-install "$installer"
+    repo_sync molnios-install "$installer" "$INSTALLER_BRANCH"
   fi
   media_if "$PHOTOS" "$media" molnios-media-static
   media_if "$VIDEOS" "$media" molnios-media-dynamic

@@ -73,6 +73,16 @@ molnios --update              # EVERYTHING to the latest version: installer, rep
 After the first run `molnios` is on your PATH (also `u` / `ml` in fish and zsh).
 Every run takes the latest flake inputs; add `--locked` to keep `flake.lock`.
 
+### Testing a branch (without merging to main)
+```bash
+molnios -fb feat/improvement          # molnixos on branch feat/improvement
+molnios -sb feat/improvement          # your dotfiles repo on that branch
+molnios -ib feat/improvement          # this installer on that branch
+molnios -fb main                      # back to main
+```
+The clone stays on the branch: later `molnios --update` runs pull that branch.
+Uncommitted edits move along; if they clash with the branch nothing is switched.
+
 ### Useful flags
 ```bash
 molnios.sh --dry-run          # show every command, change nothing

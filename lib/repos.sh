@@ -21,22 +21,52 @@ repo_url() {
   esac
 }
 
-# repo_sync <repo> <dir> - clone if missing, fast-forward if present.
+# repo_sync <repo> <dir> [branch] - clone if missing, fast-forward if present.
 # Local edits are never thrown away: if the pull cannot fast-forward, it stops
-# with a message instead.
+# with a message instead. With a branch, the clone is moved to that branch
+# first (and stays on it: later runs pull that branch).
 repo_sync() {
-  local name=$1 dir=$2 url
+  local name=$1 dir=$2 branch=${3:-} url
   url=$(repo_url "$1")
   if [ -d "$dir/.git" ]; then
+    if [ -n "$branch" ] && [ "$(git -C "$dir" rev-parse --abbrev-ref HEAD 2>/dev/null)" != "$branch" ]; then
+      repo_switch "$name" "$dir" "$branch"
+      return
+    fi
     info "updating $name"
     run_cmd git -C "$dir" pull --ff-only ||
       warn "$name: could not fast-forward (local changes?). Left as is: $dir"
   elif [ -e "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
     die "$dir exists and is not a git checkout. Move it away first."
   else
-    info "cloning $name -> $dir"
+    info "cloning $name${branch:+ ($branch)} -> $dir"
     run_cmd mkdir -p "$(dirname "$dir")"
-    run_cmd git clone --depth 1 "$url" "$dir"
+    run_cmd git clone --depth 1 ${branch:+--branch "$branch"} "$url" "$dir" ||
+      die "$name: could not clone${branch:+ branch $branch} from $url"
+  fi
+}
+
+# repo_switch <name> <dir> <branch> - put an existing (shallow) clone on
+# another branch of origin. Uncommitted edits move along (new hosts/ files
+# too); if they conflict with the branch, git refuses and nothing changes.
+repo_switch() {
+  local name=$1 dir=$2 branch=$3
+  info "switching $name to branch $branch"
+  # Shallow clones fetch only their first branch; teach origin this one too.
+  git -C "$dir" config --get-all remote.origin.fetch |
+    grep -qxF -e '+refs/heads/*:refs/remotes/origin/*' -e "+refs/heads/$branch:refs/remotes/origin/$branch" ||
+    run_cmd git -C "$dir" remote set-branches --add origin "$branch"
+  run_cmd git -C "$dir" fetch --depth 1 origin "$branch" ||
+    die "$name: no branch '$branch' on $(git -C "$dir" remote get-url origin)"
+  if git -C "$dir" show-ref --verify --quiet "refs/heads/$branch"; then
+    # Been on it before: keep its local commits, just fast-forward.
+    run_cmd git -C "$dir" checkout "$branch" ||
+      die "$name: local changes in $dir conflict with $branch - commit or stash them first"
+    run_cmd git -C "$dir" merge --ff-only "origin/$branch" ||
+      warn "$name: $branch could not fast-forward (local commits?). Left as is: $dir"
+  else
+    run_cmd git -C "$dir" checkout -b "$branch" --track "origin/$branch" ||
+      die "$name: local changes in $dir conflict with $branch - commit or stash them first"
   fi
 }
 
